@@ -1,0 +1,6 @@
+services:
+  chat-brain:
+    build: .
+    ports: ["8000:8000"]
+    volumes: ["./data:/srv/data"]   # knowledge.yaml, products.json, log.jsonl bisa disunting tanpa rebuild
+    restart: unless-stopped

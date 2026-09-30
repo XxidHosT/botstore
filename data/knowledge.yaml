@@ -1,0 +1,186 @@
+# CONTOH ISI. Semua jawaban di bawah ini harus disesuaikan dengan kebijakan Jual Game yang sebenarnya.
+# Menambah kemampuan bot = menambah "examples". Tidak perlu training ulang, cukup POST /admin/reload.
+site:
+  name: Jual Game
+  support_email: support@jualgame.id   # nanti ambil dari SiteSetting (DB), bukan ditulis manual
+
+intents:
+  greeting:
+    examples: {id: [halo, hai, hallo, selamat pagi, selamat siang, selamat sore, selamat malam, permisi, assalamualaikum, hai kak, halo min],
+               en: [hello, hi, hey, good morning, good evening, hi there]}
+    answer: {id: "Halo! Aku asisten otomatis Jual Game. Mau cari game, cek harga, atau tanya soal pembayaran dan pengiriman?",
+             en: "Hi! I'm Jual Game's automated assistant. Want to find a game, check a price, or ask about payment and delivery?"}
+    label: {id: "Halo", en: "Hello"}
+    followups: [find_product, payment_methods, delivery]
+  thanks:
+    examples: {id: [terima kasih, makasih, makasih banyak, thanks, trims, terima kasih ya], en: [thank you, thanks a lot, thx, thanks]}
+    answer: {id: "Sama-sama! Kalau ada yang lain, tinggal tanya ya.", en: "You're welcome! Just ask if you need anything else."}
+  goodbye:
+    examples: {id: [sampai jumpa, dadah, sudah cukup, itu saja, bye, udah itu aja], en: [bye, goodbye, see you, that is all, that's it]}
+    answer: {id: "Siap, sampai jumpa! Chat lagi kapan saja ya.", en: "Sure, see you! Chat again anytime."}
+  price:
+    examples: {id: [berapa harga, harganya berapa, harga, berapa harganya, berapa, harga nya berapa, cek harga, harga berapa], en: [how much, price, what is the price, how much is it, price check]}
+    answer: {id: "Produk yang mana? Sebutkan nama game atau produknya.", en: "Which product? Tell me the game or product name."}
+    label: {id: "Cek harga", en: "Check price"}
+  stock:
+    examples: {id: [stok ada, masih tersedia, ready, ada stok, apakah tersedia, stoknya masih ada, ready gak, stok], en: [is it in stock, available, in stock, is it available, stock]}
+    answer: {id: "Produk yang mana? Sebutkan nama game atau produknya.", en: "Which product? Tell me the game or product name."}
+    label: {id: "Cek stok", en: "Check stock"}
+  find_product:
+    examples: {id: [cari game, ada game apa, punya game apa saja, mau beli, rekomendasi game, mau cari, ada produk apa, mau beli game, cari produk, katalog, mau top up, top up roblox, ada voucher,
+                    apa saja yang dijual, jual apa aja, apa saja yang bisa dibeli, toko ini jual apa, list produk, list game, daftar produk],
+               en: [do you have, looking for, recommend a game, show me games, what games do you have, i want to buy, browse, catalog, what do you sell, what can i buy, what products do you have, list of games]}
+    answer: {id: "Mau cari yang mana? Sebutkan nama game, platform, atau jenis produknya.", en: "What are you looking for? Tell me the game, platform or product type."}
+    label: {id: "Cari produk", en: "Find a product"}
+  payment_methods:
+    examples: {id: [cara bayar, metode pembayaran, bayar pakai apa, bisa bayar dengan apa, cara pembayaran, bisa qris, bisa transfer, bisa ewallet, pembayaran, cara beli,
+                    bisa gopay, bisa pakai gopay, bisa ovo, bisa dana, bisa shopeepay, bisa transfer bank, bisa virtual account, bisa kartu kredit, bisa indomaret, bisa alfamart, bisa cicil, bisa paylater],
+               en: [how to pay, payment methods, can i pay with, what payment do you accept, payment options, how do i buy, can i pay with ovo, do you accept gopay, do you accept credit card, can i pay with paypal, can i pay in installments, do you take dana]}
+    answer: {id: "Metode pembayaran yang tersedia ditampilkan saat checkout. Pilih produk, lanjut ke pembayaran, lalu pilih metode yang kamu mau.",
+             en: "Available payment methods are shown at checkout. Pick a product, proceed to payment, then choose your method."}
+    label: {id: "Cara bayar", en: "How to pay"}
+    followups: [delivery, order_status]
+  delivery:
+    examples: {id: [pengiriman, lama pengiriman, kapan dikirim, berapa lama sampai, dikirim lewat apa, kapan barang sampai, kapan produk dikirim, kirim berapa lama],
+               en: [delivery, delivery time, how long does delivery take, when will i receive it, shipping time, when is it delivered]}
+    answer: {id: "Detail pengiriman ada di halaman masing-masing produk. Untuk produk digital, biasanya dikirim setelah pembayaran terkonfirmasi. Kalau sudah bayar tapi belum masuk, kirim nomor order ya.",
+             en: "Delivery details are on each product page. Digital products are usually delivered once payment is confirmed. If you've paid but haven't received it, send your order number."}
+    label: {id: "Pengiriman", en: "Delivery"}
+    followups: [order_status, contact]
+  refund:
+    examples: {id: [refund, pengembalian dana, uang kembali, batalkan pesanan, mau batal, minta refund, bisa refund, kebijakan pengembalian],
+               en: [refund, money back, cancel my order, can i get a refund, return policy, cancel order]}
+    answer: {id: "Kebijakan refund dan pembatalan ada di halaman Terms. Kalau pesananmu bermasalah, sebutkan nomor order dan aku teruskan ke tim.",
+             en: "Our refund and cancellation policy is on the Terms page. If your order has a problem, send the order number and I'll pass it to the team."}
+    label: {id: "Refund", en: "Refund"}
+    followups: [human, contact]
+  order_status:
+    examples: {id: [status pesanan, pesanan saya dimana, cek order, sudah bayar tapi belum diproses, cek status order, pesanan belum sampai, order saya belum masuk],
+               en: [where is my order, order status, track my order, i paid but nothing arrived, check my order]}
+    answer: {id: "Untuk cek pesanan, siapkan nomor order dan email pembelian. Kirim ke {email} atau tunggu tim membalas di chat ini.",
+             en: "To check an order, have your order number and purchase email ready. Send them to {email} or wait for the team to reply here."}
+    label: {id: "Status pesanan", en: "Order status"}
+    followups: [human, contact]
+  license:
+    examples: {id: [aktivasi lisensi, kode tidak bisa dipakai, key tidak valid, cara aktivasi, cara redeem key, lisensi error, key tidak jalan, kenapa key saya ditolak, key ditolak, kode ditolak, key sudah dipakai],
+               en: [license activation, key is invalid, how to redeem key, code not working, activation error, license key problem]}
+    answer: {id: "Untuk aktivasi, ikuti panduan di halaman dokumentasi produk. Kalau key tetap ditolak, kirim nomor order dan aku teruskan ke tim.",
+             en: "For activation, follow the guide in the product documentation. If the key is still rejected, send your order number and I'll pass it to the team."}
+    label: {id: "Aktivasi lisensi", en: "License activation"}
+    followups: [help_docs, human]
+  contact:
+    examples: {id: [kontak, email admin, hubungi admin, nomor admin, kontak support, email support, alamat email], en: [contact, contact support, support email, how can i reach you, email address]}
+    answer: {id: "Kamu bisa hubungi tim lewat email {email}, atau lanjut chat di sini.", en: "You can reach the team at {email}, or keep chatting here."}
+    label: {id: "Kontak", en: "Contact"}
+  help_docs:
+    examples: {id: [dokumentasi, panduan, tutorial, cara pakai, bantuan, help], en: [docs, documentation, guide, how to use, tutorial, help]}
+    answer: {id: "Panduan lengkap ada di halaman dokumentasi. Sebut topiknya, nanti aku arahkan.", en: "Full guides are in the documentation. Tell me the topic and I'll point you there."}
+    label: {id: "Dokumentasi", en: "Docs"}
+  human:
+    examples: {id: [bicara dengan admin, mau ngobrol dengan orang, minta admin, hubungkan ke admin, panggil admin, mau bicara sama manusia, cs manusia, ada orang beneran],
+               en: [talk to a human, agent please, real person, connect me to an agent, speak to support, human please]}
+    answer: {id: "", en: ""}
+    label: {id: "Bicara dengan tim", en: "Talk to the team"}
+  complaint:
+    examples: {id: [kecewa, penipu, komplain, lambat sekali, tidak puas, pelayanan buruk, parah banget, sudah lama tidak ada balasan], en: [scam, this is terrible, i am disappointed, complaint, worst service, very slow]}
+    answer: {id: "", en: ""}
+
+  ack:
+    examples: {id: [ok, oke, oke deh, okay, siap, sip, baik, baiklah, iya, ya, yaudah, mantap, oke siap, sip deh, noted],
+               en: [ok, okay, got it, alright, sure, "yes", yep, fine, sounds good]}
+    answer: {id: "Siap! Kalau ada yang mau ditanyakan lagi, tinggal tulis ya.", en: "Got it! Just ask if you need anything else."}
+  deny:
+    examples: {id: [tidak, nggak, bukan, tidak jadi, nggak jadi, nggak jadi deh, gak usah, tidak usah, bukan itu, bukan yang itu],
+               en: ["no", nope, never mind, forget it, no thanks, not that]}
+    answer: {id: "Baik, tidak masalah. Kalau ada yang ingin ditanyakan, tinggal tulis ya.", en: "Okay, no problem. Just write if you want to ask something."}
+  bot_identity:
+    examples: {id: [kamu bot ya, kamu bot, ini bot, kamu robot, kamu manusia atau bot, kamu siapa, siapa kamu, ini manusia atau bukan, apakah kamu manusia, apakah ini robot, kamu ai ya, ini ai, kamu asli manusia],
+               en: [are you a bot, are you a real person, are you human, who are you, is this a bot, am i talking to a robot, are you ai, are you a robot]}
+    answer: {id: "Aku asisten otomatis Jual Game, bukan manusia. Aku bisa bantu cek harga, stok, pembayaran, dan pengiriman. Kalau mau bicara dengan tim, bilang saja ya.",
+             en: "I'm Jual Game's automated assistant, not a human. I can help with prices, stock, payment and delivery. If you'd like to talk to the team, just say so."}
+    followups: [human, find_product]
+  promo:
+    examples: {id: [ada diskon, ada promo, lagi ada diskon, promo hari ini, ada potongan harga, kode promo, kupon diskon, ada cashback, bisa kurang, bisa nego, bisa tawar, diskon berapa persen, ada voucher diskon, ada flash sale, harga promo, ada bonus],
+               en: [any discounts, are there any discounts, promo code, coupon, is there a sale, any deals, discount code, cashback, are there any promo codes, can you lower the price]}
+    answer: {id: "Diskon dan promo yang sedang berlaku tertera di halaman produk dan beranda. Aku tidak bisa mengubah harga atau menjanjikan potongan di luar yang tertera.",
+             en: "Current discounts and promos are shown on the product pages and the homepage. I can't change prices or promise discounts beyond what's listed."}
+    label: {id: "Promo", en: "Promo"}
+    followups: [find_product]
+  warranty:
+    examples: {id: [ada garansi, garansi berapa lama, klaim garansi, bergaransi, garansi produk, ada garansi gak, kalau rusak diganti gak, garansi ganti key],
+               en: [is there a warranty, warranty, guarantee, do you offer a guarantee, warranty period, replacement guarantee]}
+    answer: {id: "Ketentuan garansi dan penggantian ada di halaman Terms dan halaman produk. Kalau produk yang sudah kamu beli bermasalah, kirim nomor order dan aku teruskan ke tim.",
+             en: "Warranty and replacement terms are on the Terms page and the product page. If a product you bought has a problem, send the order number and I'll pass it to the team."}
+    label: {id: "Garansi", en: "Warranty"}
+    followups: [human, refund]
+  authenticity:
+    examples: {id: [original gak, key original, apakah resmi, ini legal, produk asli, apakah aman, ini resmi atau bukan, key resmi, aman gak beli disini, bukan bajakan, legit gak, toko ini terpercaya, apakah terpercaya, ini asli],
+               en: [is it original, is it legit, is this legal, genuine keys, is it official, is this safe to buy, is this site trustworthy, are the keys legit, is it authentic]}
+    answer: {id: "Informasi sumber dan keaslian produk ada di halaman masing-masing produk. Untuk pertanyaan yang lebih spesifik, aku bisa teruskan ke tim.",
+             en: "Information about each product's source and authenticity is on its product page. For more specific questions, I can pass you to the team."}
+    label: {id: "Keaslian produk", en: "Product authenticity"}
+    followups: [human]
+  hours:
+    examples: {id: [jam operasional, buka jam berapa, jam buka, admin online jam berapa, tutup jam berapa, buka 24 jam, hari libur buka gak, jam kerja admin, admin aktif jam berapa],
+               en: [opening hours, business hours, what time do you open, open 24 hours, are you open, are you open 24 hours, when are you online, support hours]}
+    answer: {id: "Aku asisten otomatis dan bisa membalas kapan saja. Untuk jam kerja tim admin, cek halaman Kontak atau tanya lewat {email}.",
+             en: "I'm an automated assistant and can reply anytime. For the admin team's working hours, check the Contact page or ask via {email}."}
+    label: {id: "Jam operasional", en: "Opening hours"}
+    followups: [contact, human]
+  payment_issue:
+    examples: {id: [salah transfer, salah kirim uang, transfer salah nominal, uang terpotong, saldo terpotong tapi gagal, bayar dua kali, dobel bayar, pembayaran gagal, pembayaran belum terkonfirmasi, sudah transfer belum dikonfirmasi, uang kepotong pesanan gagal, uang kepotong tapi pesanan gagal, bayar tapi error, double payment],
+               en: [i paid twice, double charged, payment failed, wrong transfer, money deducted but failed, charged but no order, sent the wrong amount, paid but order failed]}
+    answer: {id: "Maaf atas kendalanya. Untuk masalah pembayaran (salah transfer, terpotong dua kali, atau gagal tapi saldo berkurang), siapkan nomor order, waktu bayar, dan bukti pembayaran, lalu tulis di sini atau kirim ke {email}. Aku bisa teruskan ke tim kalau kamu mau.",
+             en: "Sorry about the trouble. For payment problems (wrong transfer, charged twice, or failed but money deducted), have your order number, payment time and proof of payment ready, then write it here or send it to {email}. I can pass you to the team if you like."}
+    label: {id: "Masalah pembayaran", en: "Payment problem"}
+    followups: [human, contact]
+  too_expensive:
+    examples: {id: [mahal banget, kemahalan, terlalu mahal, kok mahal, mahal ya, mahal sekali, ada yang lebih murah, ada yang lebih terjangkau, yang murahan ada, budget saya kurang, kemahalan nih, kemahalan banget],
+               en: [too expensive, it is too expensive, this is expensive, is there anything cheaper, cheaper option, pricey, any cheaper alternatives, out of my budget]}
+    answer: {id: "Kalau mau yang lebih terjangkau, sebutkan anggaranmu, misalnya di bawah 100rb, nanti kutampilkan pilihannya.", en: "If you want something more affordable, tell me your budget, for example under 100k, and I'll show options."}
+  compare:
+    examples: {id: [bandingkan, banding, bandingin, perbandingan, lebih bagus mana, bagus yang mana, mending yang mana, pilih yang mana, bedanya apa, beda apa, bagus mana, vs, versus, mana yang lebih baik],
+               en: [compare, compare these, which is better, difference between, versus, vs, which one should i pick, which one is better]}
+    answer: {id: "Mau bandingkan produk yang mana? Sebutkan dua nama produk, misalnya Elden Ring vs Minecraft.", en: "Which products do you want to compare? Give me two product names, for example Elden Ring vs Minecraft."}
+  alternative:
+    examples: {id: [ada yang mirip, ada alternatif, yang serupa, alternatifnya apa, ada pilihan lain, produk lain, yang lain ada, ada yang sejenis, mirip ini ada, ada yang seperti itu, gantinya apa],
+               en: [anything similar, alternatives, similar products, something similar, any other options, other options, what else do you have like this, is there an alternative]}
+    answer: {id: "Alternatif untuk produk yang mana? Sebutkan nama produknya.", en: "Alternatives for which product? Tell me the product name."}
+
+texts:
+  clarify: {id: "Maksudmu salah satu ini?", en: "Did you mean one of these?"}
+  miss1: {id: "Aku belum yakin maksudmu. Boleh diperjelas, atau pilih topik di bawah?", en: "I'm not sure what you mean. Could you rephrase, or pick a topic below?"}
+  miss2: {id: "Maaf, aku masih belum menangkap. Ini topik yang bisa kubantu:", en: "Sorry, I still didn't get that. Here's what I can help with:"}
+  handoff: {id: "Aku teruskan ke tim ya. Mereka akan membalas di chat ini (atau lewat {email}). Sambil menunggu, tulis detail masalahmu di sini.", en: "I'm passing this to the team. They'll reply here (or via {email}). Meanwhile, write down the details of your issue."}
+  ask_product: {id: "Game atau produk yang mana?", en: "Which game or product?"}
+  no_product: {id: "Aku belum menemukan produk itu di katalog. Coba tulis nama lengkapnya, atau lihat pilihan lain:", en: "I couldn't find that product in the catalog. Try the full name, or see other options:"}
+  price_line: {id: "{name} harganya {price}.", en: "{name} costs {price}."}
+  stock_in: {id: "{name} tersedia (stok {stock}).", en: "{name} is in stock ({stock} left)."}
+  stock_out: {id: "Maaf, {name} sedang habis.", en: "Sorry, {name} is out of stock."}
+  found: {id: "Ini yang cocok:", en: "Here's what matches:"}
+  rate_limit: {id: "Pelan-pelan ya, tunggu sebentar sebelum kirim pesan lagi.", en: "Slow down a little, please wait a moment before sending again."}
+  error: {id: "Maaf, ada gangguan kecil di sisiku. Coba lagi, atau hubungi {email}.", en: "Sorry, something went wrong on my side. Try again, or contact {email}."}
+  price_stock_in: {id: "{name}: harga {price}, tersedia (stok {stock}).", en: "{name}: {price}, in stock ({stock} left)."}
+  price_stock_out: {id: "{name}: harga {price}, tapi sedang habis.", en: "{name}: {price}, but currently out of stock."}
+  alt_intro: {id: "Sebagai alternatif yang tersedia:", en: "Available alternatives:"}
+  alt_none: {id: "Aku belum menemukan alternatif yang tersedia di kategori yang sama.", en: "I couldn't find an available alternative in the same category."}
+  compare_intro: {id: "Perbandingan dari data toko (harga, rating, stok):", en: "Comparison from store data (price, rating, stock):"}
+  compare_line: {id: "{name}: {price}, rating {rating}, {stock_word}.", en: "{name}: {price}, rating {rating}, {stock_word}."}
+  word_in: {id: "tersedia", en: "in stock"}
+  word_out: {id: "habis", en: "out of stock"}
+  cheapest_is: {id: "Paling murah: {name}.", en: "Cheapest: {name}."}
+  best_is: {id: "Rating tertinggi: {name}.", en: "Highest rated: {name}."}
+  rating_tie: {id: "Rating keduanya sama. Soal selera, itu tergantung kamu; aku hanya membandingkan data toko.", en: "Their ratings are equal. Taste is up to you; I only compare store data."}
+  compare_note: {id: "Soal selera, itu tergantung kamu; aku hanya membandingkan data toko.", en: "Taste is up to you; I only compare store data."}
+  cheapest_intro: {id: "Ini yang paling murah dan tersedia saat ini:", en: "The cheapest available right now:"}
+  pricey_intro: {id: "Ini yang harganya paling tinggi saat ini:", en: "The highest-priced right now:"}
+  best_intro: {id: "Ini yang rating tertingginya saat ini:", en: "Top-rated right now:"}
+  no_filter: {id: "Aku belum bisa menyaring berdasarkan \"{terms}\" (katalogku belum punya data genre atau fitur).", en: "I can't filter by \"{terms}\" yet (my catalog has no genre or feature data)."}
+  budget_intro: {id: "Pilihan yang tersedia dengan harga sampai {max}:", en: "Available options up to {max}:"}
+  min_intro: {id: "Pilihan yang tersedia mulai dari {min}:", en: "Available options from {min}:"}
+  range_intro: {id: "Pilihan yang tersedia antara {min} dan {max}:", en: "Available options between {min} and {max}:"}
+  budget_none: {id: "Belum ada yang tersedia dengan harga sampai {max}. Yang paling murah saat ini:", en: "Nothing available up to {max}. The cheapest right now:"}
+  none_generic: {id: "Belum ada produk tersedia yang cocok dengan kriteria itu. Coba longgarkan kriterianya, atau lihat yang rating tertingginya:", en: "No available product matches that. Try loosening the criteria, or see the top-rated ones:"}
+  cheaper_intro: {id: "Ini pilihan yang lebih murah dan tersedia:", en: "Cheaper options that are available:"}
+  cheaper_none: {id: "Untuk itu belum ada pilihan yang lebih murah di katalog. Kalau anggaranmu terbatas, sebutkan nominalnya ya.", en: "There's no cheaper option for that in the catalog. If your budget is limited, tell me the amount."}
+  order_received: {id: "Nomor order {order} sudah kucatat. Aku belum bisa mengecek status order secara otomatis, jadi kuteruskan ke tim. Mereka akan membalas di chat ini (atau lewat {email}).", en: "Noted order number {order}. I can't check order status automatically, so I'm passing this to the team. They'll reply here (or via {email})."}
