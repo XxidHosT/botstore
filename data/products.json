@@ -1,8 +1,8 @@
 [
- {"id":"p1","name":"Elden Ring (Steam Key)","aliases":["elden ring","eldenring"],"category":"game steam","price":459000,"stock":12,"rating":4.8,"url":"/p/elden-ring"},
- {"id":"p2","name":"Cyberpunk 2077 (Steam Key)","aliases":["cyberpunk","cyberpunk 2077"],"category":"game steam","price":299000,"stock":0,"rating":4.4,"url":"/p/cyberpunk-2077"},
- {"id":"p3","name":"Steam Wallet 100K","aliases":["steam wallet","saldo steam"],"category":"voucher steam","price":105000,"stock":80,"rating":4.9,"url":"/p/steam-wallet-100k"},
- {"id":"p4","name":"Roblox 800 Robux","aliases":["robux","800 robux","roblox robux"],"category":"topup roblox","price":149000,"stock":40,"rating":4.7,"url":"/p/robux-800"},
- {"id":"p5","name":"Minecraft Java & Bedrock","aliases":["minecraft"],"category":"game pc","price":359000,"stock":7,"rating":4.9,"url":"/p/minecraft"},
- {"id":"p6","name":"Stardew Valley (Steam Key)","aliases":["stardew valley","stardew"],"category":"game steam","price":89000,"stock":25,"rating":4.9,"url":"/p/stardew-valley"}
+ {"id":"p1","name":"Elden Ring (Steam Key)","aliases":["elden ring","eldenring"],"category":"game steam","price":459000,"stock":12,"rating":4.8,"url":"/p/elden-ring","tags":["rpg","action","singleplayer","open world","sulit"]},
+ {"id":"p2","name":"Cyberpunk 2077 (Steam Key)","aliases":["cyberpunk","cyberpunk 2077"],"category":"game steam","price":299000,"stock":0,"rating":4.4,"url":"/p/cyberpunk-2077","tags":["rpg","action","singleplayer","open world"]},
+ {"id":"p3","name":"Steam Wallet 100K","aliases":["steam wallet","saldo steam"],"category":"voucher steam","price":105000,"stock":80,"rating":4.9,"url":"/p/steam-wallet-100k","tags":["voucher"]},
+ {"id":"p4","name":"Roblox 800 Robux","aliases":["robux","800 robux","roblox robux"],"category":"topup roblox","price":149000,"stock":40,"rating":4.7,"url":"/p/robux-800","tags":["topup","roblox"]},
+ {"id":"p5","name":"Minecraft Java & Bedrock","aliases":["minecraft"],"category":"game pc","price":359000,"stock":7,"rating":4.9,"url":"/p/minecraft","tags":["sandbox","survival","kreatif","santai","singleplayer","multiplayer"]},
+ {"id":"p6","name":"Stardew Valley (Steam Key)","aliases":["stardew valley","stardew"],"category":"game steam","price":89000,"stock":25,"rating":4.9,"url":"/p/stardew-valley","tags":["simulasi","farming","santai","kreatif","singleplayer","multiplayer"]}
 ]

@@ -99,6 +99,9 @@ class Bot:
             pass                                            # webhook tidak boleh mengganggu chat
 
     def reply(self, cid, text):
+        if self.kb.stamp() != self.kb._stamp:                # data diubah (admin/dasbor/sunting berkas): muat ulang di worker ini juga
+            try: self.reload()
+            except Exception: pass                           # berkas setengah tertulis: pakai data lama dulu
         s = self.st(cid)
         try:
             if s["mode"] == "AGENT":
@@ -245,7 +248,8 @@ class Bot:
             return self._out([self._t("clarify", lang), self._chips(["human", "find_product"], lang)], lang, intent, conf, "clarify")
 
         # 4) pencarian berfilter: "game di bawah 100rb", "yang termurah", "rekomendasi"
-        if not prods and (ent.max_price or ent.min_price or ent.sort) and (intent in CATALOG_OK or intent in ("compare", "alternative") or conf < MID):
+        tags, _ = kb.extract_tags(ent.text) if not prods else ([], "")
+        if not prods and (ent.max_price or ent.min_price or ent.sort or tags) and (intent in CATALOG_OK or intent in ("compare", "alternative") or conf < MID):
             out = self._catalog(s, ent, lang, conf)
             if out: return out
 
@@ -349,8 +353,14 @@ class Bot:
     # ---------- pencarian berfilter & intent katalog ----------
     def _catalog(self, s, ent, lang, conf):
         kb = self.kb
-        items, had_hit = kb.query(ent.text, ent.max_price, ent.min_price, ent.sort)
-        unk = kb.unknown_terms(ent.text, known=self.clf.vocab_set)
+        tags, clean = kb.extract_tags(ent.text)
+        if tags and not kb.has_tags(tags):                           # katalog memang tak punya tag itu (mis. horor): jujur, jangan menebak
+            s["pending"], s["miss"] = None, 0
+            top, _ = kb.query("", sort="best", k=3)
+            self._remember(s, "find_product", top)
+            return self._out([self._t("no_tag", lang, tags=" + ".join(tags)), self._cards(top)], lang, "find_product", conf, "search")
+        items, had_hit = kb.query(clean, ent.max_price, ent.min_price, ent.sort, tags=tags)
+        unk = kb.unknown_terms(clean, known=self.clf.vocab_set)
         if unk and not had_hit and ent.sort != "best":
             return None                                              # yang dicari tak ada di katalog -> biarkan alur "tidak ditemukan"
         note = kb.t("no_filter", lang, terms=" ".join(unk)) + " " if unk else ""
@@ -360,6 +370,11 @@ class Bot:
             elif ent.max_price: intro = kb.t("budget_intro", lang, max=mx)
             elif ent.min_price: intro = kb.t("min_intro", lang, min=mn)
             else: intro = kb.t({"cheap": "cheapest_intro", "pricey": "pricey_intro"}.get(ent.sort, "best_intro"), lang)
+            if tags: intro = kb.t("tag_intro", lang, tags=", ".join(tags)) + (" " + intro if (ent.max_price or ent.min_price or ent.sort in ("cheap", "pricey")) else "")
+        elif tags and (ent.max_price or ent.min_price):
+            near = kb.query(clean, tags=tags, sort="cheap", k=2)[0]           # tag cocok tapi di luar batas harga: tunjukkan yang terdekat
+            if near: items, intro = near, kb.t("tag_price_none", lang, tags=", ".join(tags))
+            else: items, intro = kb.query("", sort="best", k=3)[0], kb.t("none_generic", lang)
         elif ent.max_price:
             items = kb.query(ent.text, sort="cheap", k=1)[0] or kb.query("", sort="cheap", k=1)[0]
             intro = kb.t("range_none", lang, min=mn, max=mx) if ent.min_price else kb.t("budget_none", lang, max=mx)

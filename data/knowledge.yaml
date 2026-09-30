@@ -154,7 +154,28 @@ intents:
                en: [anything similar, alternatives, similar products, something similar, any other options, other options, what else do you have like this, is there an alternative]}
     answer: {id: "Alternatif untuk produk yang mana? Sebutkan nama produknya.", en: "Alternatives for which product? Tell me the product name."}
 
+# Kata yang dipakai pelanggan -> tag di products.json. Tag yang belum dimiliki produk mana pun (mis. horor) dijawab jujur "belum ada".
+tag_aliases:
+  santai: [santai, relax, relaxing, chill, tenang, cozy]
+  horor: [horor, horror, seram, menakutkan, scary]
+  rpg: [rpg]
+  action: [action, aksi]
+  "open world": [open world, dunia terbuka]
+  sandbox: [sandbox]
+  survival: [survival, bertahan hidup]
+  kreatif: [kreatif, creative, membangun, building]
+  simulasi: [simulasi, simulation]
+  farming: [farming, bertani, berkebun, pertanian]
+  singleplayer: [single player, singleplayer, sendirian, main sendiri, solo]
+  multiplayer: [multiplayer, co op, coop, berdua, bareng, main bareng, bersama teman, sama teman, with friends]
+  sulit: [sulit, susah, hardcore, challenging]
+  voucher: [voucher]
+  topup: [topup, top up]
+
 texts:
+  tag_intro: {id: "Berdasarkan tag di katalog ({tags}), ini yang tersedia:", en: "Based on catalog tags ({tags}), these are available:"}
+  tag_price_none: {id: "Belum ada produk tersedia bertag {tags} dalam batas harga itu. Yang terdekat:", en: "No available product tagged {tags} fits that price. The closest:"}
+  no_tag: {id: "Belum ada produk di katalog dengan tag \"{tags}\". Sebagai gantinya, ini yang rating tertingginya:", en: "No catalog product is tagged \"{tags}\" yet. Here are the top-rated ones instead:"}
   no_free: {id: "Semua produk di katalogku berbayar, belum ada yang gratis. Yang paling murah saat ini:", en: "Everything in my catalog is paid, nothing is free. The cheapest right now:"}
   qty_line: {id: "{name} x{n}: {price} x {n} = {sub}.", en: "{name} x{n}: {price} x {n} = {sub}."}
   qty_over: {id: "(Stok {name} hanya {stock}.)", en: "(Only {stock} of {name} in stock.)"}

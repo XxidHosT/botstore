@@ -98,3 +98,26 @@ def test_admin_conversation_endpoints(monkeypatch, tmp_path):
     assert c.get("/conversations/tidakada", headers=H).status_code == 404
     c.post("/conversations/z9/mode", json={"mode": "AI"}, headers=H)          # admin selesai
     assert c.get("/conversations", headers=H).json()["items"] == []
+
+
+def test_discord_payload_is_safe_and_only_for_handoff():
+    from app.notify import discord_payload
+    ev = {"event": "handoff", "conversation_id": "abc", "reason": "handoff", "intent": "human",
+          "history": [{"role": "user", "text": "@everyone tolong " + "x" * 5000}]}
+    body = discord_payload(ev, "https://panel.x/chat/{id}")
+    assert body["allowed_mentions"] == {"parse": []} and body["embeds"][0]["url"] == "https://panel.x/chat/abc"
+    assert len(body["embeds"][0]["description"]) <= 4096
+    assert discord_payload({"event": "customer_message"}) is None
+    assert discord_payload(ev, "", "123")["allowed_mentions"]["roles"] == ["123"]
+    assert "content" not in discord_payload(ev, "", "bukan-angka")
+
+
+def test_data_change_is_picked_up_without_explicit_reload(monkeypatch, tmp_path):
+    import shutil, time, app.kb as kbm, app.dialogue as d
+    shutil.copytree(kbm.DATA, tmp_path / "data")
+    monkeypatch.setattr(kbm, "DATA", tmp_path / "data"); monkeypatch.setattr(d, "DATA", tmp_path / "data")
+    b = d.Bot()
+    assert "459.000" in str(b.reply("r", "harga elden ring"))
+    pj = tmp_path / "data" / "products.json"
+    pj.write_text(pj.read_text().replace("459000", "500000")); time.sleep(0.01)
+    assert "500.000" in str(b.reply("r2", "harga elden ring"))

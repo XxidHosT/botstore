@@ -10,10 +10,24 @@ class KB:
     def __init__(self):
         self.load()
 
+    FILES = ("knowledge.yaml", "products.json", "learned.json")
+
+    def stamp(self):
+        """Tanda waktu berkas data; dipakai supaya setiap worker memuat ulang sendiri saat data berubah (reload di satu worker tak cukup)."""
+        return tuple((DATA / f).stat().st_mtime_ns if (DATA / f).exists() else 0 for f in self.FILES)
+
     def load(self):
+        self._stamp = self.stamp()
         k = yaml.safe_load((DATA / "knowledge.yaml").read_text(encoding="utf-8"))
         self.site, self.intents, self.texts = k["site"], k["intents"], k["texts"]
         self.products = json.loads((DATA / "products.json").read_text(encoding="utf-8"))
+        self.tag_aliases = {tag: [normalize(a) for a in al] for tag, al in (k.get("tag_aliases") or {}).items()}
+        learned = DATA / "learned.json"                       # contoh kalimat dari dasbor review; terpisah dari knowledge.yaml agar mudah dibatalkan
+        if learned.exists():
+            for intent, per_lang in json.loads(learned.read_text(encoding="utf-8")).items():
+                if intent in self.intents:
+                    for lang, exs in per_lang.items():
+                        self.intents[intent]["examples"].setdefault(lang, []).extend(exs)
 
     def t(self, key, lang, **kw):
         return self.texts[key].get(lang, self.texts[key]["id"]).format(email=self.site["support_email"], **kw)
@@ -81,12 +95,28 @@ class KB:
     def _words(self, p):
         return set(normalize(" ".join([p["name"], p["category"]] + p["aliases"])).split())
 
-    def query(self, text="", max_price=None, min_price=None, sort=None, k=3, in_stock=True):
+    def extract_tags(self, text):
+        """(tag kanonik yang disebut, teks tanpa frasa tag). Kata tag tak boleh ikut dicocokkan ke nama produk atau dianggap 'tak dikenal'."""
+        import re
+        q, found = normalize(text), []
+        for tag, aliases in self.tag_aliases.items():
+            for a in sorted(aliases, key=len, reverse=True):
+                if re.search(rf"\b{re.escape(a)}\b", q):
+                    found.append(tag); q = re.sub(rf"\b{re.escape(a)}\b", " ", q)
+                    break
+        return found, " ".join(q.split())
+
+    def has_tags(self, tags):
+        """Adakah produk (stok apa pun) yang memuat semua tag ini?"""
+        return any(set(tags) <= set(p.get("tags", [])) for p in self.products)
+
+    def query(self, text="", max_price=None, min_price=None, sort=None, k=3, in_stock=True, tags=()):
         """Filter katalog: kata kategori dari teks + batas harga + urutan. Semua angka murni dari data."""
         toks = [t for t in normalize(text).split() if (len(t) >= 3 or t in self.CATEGORY_HINT) and t not in self.STOP and t not in self.GENERIC]
         toks += [t for t in normalize(text).split() if t in ("game", "games")]
         toks = [t.rstrip("s") if t == "games" else t for t in toks]
         pool = [p for p in self.products if (p["stock"] > 0 or not in_stock)]
+        if tags: pool = [p for p in pool if set(tags) <= set(p.get("tags", []))]
         had_hit = False
         if toks:
             scored = []
