@@ -83,7 +83,8 @@ Sekali di VPS (Docker + Compose terpasang):
     docker compose -f docker-compose.prod.yml up -d --build
 
 DNS `DOMAIN` harus mengarah ke VPS; Caddy mengurus HTTPS otomatis. Sesudahnya, push ke `main` men-deploy sendiri lewat
-`.github/workflows/deploy.yml` (isi secret VPS_HOST, VPS_USER, VPS_SSH_KEY, VPS_PATH di GitHub).
+`.github/workflows/deploy.yml`: runner GitHub mengirim kode ke VPS lewat rsync (VPS butuh docker + rsync dan `.env`, tidak butuh akses GitHub).
+Isi secret VPS_HOST, VPS_USER, VPS_SSH_KEY (kunci khusus deploy), VPS_PATH di GitHub.
 
 Yang sudah diamankan: endpoint admin butuh `Authorization: Bearer $ADMIN_TOKEN` (nonaktif bila token kosong), rate limit
 per IP selain per percakapan, CORS terbatas, state percakapan di SQLite (`data/state.db`, selamat dari restart, aman untuk
