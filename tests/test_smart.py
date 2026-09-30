@@ -4,9 +4,9 @@ import pytest
 from app.dialogue import Bot
 from app.entities import extract
 from tools.evaluate import judge, flat
-from tests import heldout, heldout_b
+from tests import heldout, heldout_b, heldout_c, heldout_d, heldout_e
 
-ALL = heldout.CASES + heldout_b.CASES
+ALL = heldout.CASES + heldout_b.CASES + heldout_c.CASES + heldout_d.CASES + heldout_e.CASES
 
 
 def run(turns, cid="t"):
@@ -43,6 +43,11 @@ def test_every_number_comes_from_data():
     """Invarian inti: harga yang muncul di balasan hanya harga katalog atau angka yang diketik pengguna."""
     b0 = Bot()
     allowed = {p["price"] for p in b0.kb.products}
+    import itertools                                        # total = jumlah x harga katalog (maks 3 produk, tiap produk <= 10 buah)
+    for r in (1, 2, 3):
+        for combo in itertools.combinations(b0.kb.products, r):
+            for ns in itertools.product(range(1, 11), repeat=r):
+                allowed.add(sum(n * p["price"] for n, p in zip(ns, combo)))
     msgs = [t for c in ALL for t in c[1]]
     for c in ALL:
         for m in c[1]:

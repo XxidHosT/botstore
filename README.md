@@ -5,9 +5,9 @@ Otak chat buatan sendiri: tanpa API AI pihak ketiga, tanpa internet saat jalan. 
 ## Jalankan
     docker compose up --build        # atau: pip install -r requirements.txt && uvicorn app.main:app
     curl localhost:8000/health       # otak saja, tanpa UI
-    pytest -q tests                  # 191 tes (regresi perilaku + entitas + invarian keamanan data)
+    pytest -q tests                  # 255 tes (regresi perilaku + entitas + invarian keamanan data)
     python -m tools.evaluate         # skor set uji A (67 kasus)   -v untuk lihat balasan yang gagal
-    python -m tools.evaluate tests.heldout_b   # skor set uji B (54 kasus)
+    python -m tools.evaluate tests.heldout_b   # skor set uji B (54 kasus); juga heldout_c, _d, _e
 
 ## Cara kerja (satu pesan)
 1. **entitas** dari teks mentah (`app/entities.py`): batas harga ("di bawah 100rb", "max 150 ribu", "under 100k"),
@@ -23,6 +23,7 @@ Otak chat buatan sendiri: tanpa API AI pihak ketiga, tanpa internet saat jalan. 
 ## Yang bisa dijawab
 - **Harga / stok / keduanya** sekaligus, untuk beberapa produk sekaligus. "stok X berapa" = stok, bukan harga
 - **Jumlah & total**: "beli 2 minecraft berapa", "2 elden ring dan 1 minecraft totalnya berapa", lalu "totalnya berapa?" menjumlahkan produk tadi. Hitungan murni dari harga katalog; jumlah di atas stok diberi catatan
+- **Cara beli** ("cara order", "gimana caranya" sesudah menyebut produk) dan **rentang harga** ("100rb-200rb", "antara 90rb dan 150rb")
 - **Katalog berfilter**: "game di bawah 150 ribu", "voucher max 120rb", "yang termurah", "rekomendasi game",
   "diatas 300rb". Bila tak ada yang cocok, bot bilang begitu lalu menampilkan yang terdekat
 - **Bandingkan** ("minecraft vs stardew"): harga, rating, stok dari data toko. Soal selera bot tidak menilai

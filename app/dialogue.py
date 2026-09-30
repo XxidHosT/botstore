@@ -18,12 +18,14 @@ ELLIPSIS = re.compile(r"^(kalau|bagaimana dengan|bagaimana kalau|terus|lalu|dan|
 SOCIAL = {"greeting", "thanks", "goodbye", "ack", "deny", "bot_identity"}   # basa-basi tak boleh mengalahkan pertanyaan harga/stok
 FACET_WORDS = re.compile(r"\b(harga\w*|hrg|price|cost\w*|duit|biaya|how much|how many|stok\w*|stock|ready|tersedia|available|sisa|kosong|habis|berapa)\b")
 AVAIL_RX = re.compile(r"\bada\b(?!\s+(?!gak|ga|tidak|sih|nih|ya|dan|sama|atau|nggak|ngga|kah)\w)")
-STOCK_RX = re.compile(r"\b(stok|stock|ready|tersedia|available|sisa|kosong|habis|in stock)")
+HAVE_RX = re.compile(r"\b(ada|punya|jual|have|sell|is there|are there|there is|there are)\b")
+STOCK_RX = re.compile(r"\b(left|remaining|stok|stock|ready|tersedia|available|sisa|kosong|habis|in stock)")
 PRICE_RX = re.compile(r"\b(harga|hrg|price|cost|duit|biaya|how much)")
 TOTAL_RX = re.compile(r"\b(total\w*|jumlah\w*|semuanya|keseluruhan|all together|altogether|in total|sum)\b")
 FREE_RX = re.compile(r"\b(gratis|free(?!\s*fire))\b")
 NOT_FREE_RX = re.compile(r"\b(ongkir|kirim\w*|shipping|delivery|trial|demo)\b")
 QTY_UNIT = r"(?:x|buah|pcs|biji|unit|kali|copies|copy)?"
+HUMAN_ASK = re.compile(r"\b(panggil|panggilin|hubungi|hubungkan|sambungkan|minta|call|get|connect|talk|speak|bicara|ngobrol|chat)\b.*\b(admin|cs|agent|human|person|someone|manusia|orang|team|tim)\b")
 MASK = [(re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+"), "<email>"), (re.compile(r"\+?\d[\d\s-]{7,}\d"), "<telp>")]
 
 
@@ -160,13 +162,19 @@ class Bot:
         if ent.order_id and (intent in ORDER_INTENTS or s["last_intent"] in ORDER_INTENTS or conf < HIGH):
             return self._handoff(s, lang, "order_status", 1.0, "handoff_order", key="order_received", order=ent.order_id)
 
+        if not prods and s["last_intent"] == "find_product" and re.fullmatch(r"(gimana|bagaimana) caranya|caranya (gimana|bagaimana)|how( do i)?( do it)?", q):
+            intent, conf = "how_to_buy", 1.0                            # "gimana caranya?" sesudah menyebut mau beli produk
+
+        if prods and not facets and TOTAL_RX.search(q): facets = {"price"}      # "minecraft dan stardew, total?"
+        if intent == "compare" and len(prods) >= 2 and conf >= MID: conf = max(conf, HIGH)   # dua produk + "vs" = jelas minta perbandingan
+
         # 1) konteks: slot yang ditunggu, pertanyaan ganda (harga+stok), elipsis ("kalau Minecraft?")
         if s["pending"] and prods:
             intent, conf = s["pending"], 1.0
             if intent in ("price", "stock"): facets = facets or {intent}
         elif prods and facets:
             rem = FACET_WORDS.sub(" ", rest)                           # apa maksud kalimat setelah kata harga/stok dibuang?
-            r2 = self.clf.classify(rem) if [w for w in normalize(rem).split() if w not in FUNC] else []
+            r2 = self.clf.classify(rem) if [w for w in normalize(rem).split() if w not in FILLER and w != "sama" and not w.isdigit()] else []
             if r2 and r2[0][0] not in SLOT_INTENTS | SOCIAL and r2[0][1] >= (MID if weak else HIGH):
                 intent, conf, ranked = r2[0][0], r2[0][1], r2                # mis. "elden ring harganya mahal banget"
             else:
@@ -195,6 +203,7 @@ class Bot:
             conf = max(conf, HIGH)
 
         # 3) eskalasi (ambang tinggi: salah oper lebih mahal daripada bertanya balik)
+        if intent == "human" and conf >= MID and HUMAN_ASK.search(q): conf = max(conf, ESC_MIN)   # perintah eksplisit "panggil admin"
         if intent in ESCALATE and conf >= ESC_MIN:
             return self._handoff(s, lang, intent, conf)
         if intent in ESCALATE and conf >= MID:
@@ -221,6 +230,9 @@ class Bot:
                 self._remember(s, intent)
             return self._out(blocks, lang, intent, conf)
 
+        nf = self._unknown_product(s, prods, rest, ent, facets, lang, conf)
+        if nf: return nf
+
         if conf >= MID:                                     # ragu -> tanya balik dengan pilihan
             s["miss"] = 0
             return self._clarify(lang, ranked, intent, conf)
@@ -230,13 +242,6 @@ class Bot:
             s["miss"] = 0
             return self._out([self._t("found", lang), self._cards(found)], lang, "find_product", conf, "search")
 
-        words = normalize(rest or ent.text).split()                # "gta 5 ada?", "fifa 24": jelas menanyakan produk yang tak ada
-        unk = kb.unknown_terms(TOTAL_RX.sub(" ", rest or ent.text), known=self.clf.vocab_set) if not prods else []
-        if unk and len(words) <= 6 and (facets or any(w.isdigit() for w in words)):
-            s["pending"], s["miss"] = None, 0
-            top, _ = kb.query("", sort="best", k=3)
-            return self._out([self._t("no_product", lang), self._cards(top)], lang, "find_product", conf, "not_found")
-
         s["miss"] += 1                                      # tidak paham -> tangga fallback
         topics = ["find_product", "payment_methods", "delivery", "order_status", "human"]
         if s["miss"] == 1:
@@ -244,6 +249,17 @@ class Bot:
         if s["miss"] == 2:
             return self._out([self._t("miss2", lang), self._chips(topics, lang)], lang, intent, conf, "miss2")
         return self._handoff(s, lang, "human", conf, "miss3")
+
+    def _unknown_product(self, s, prods, rest, ent, facets, lang, conf):
+        """"gta 5 ada?", "fifa 24", "valorant point ada ga": jelas menanyakan produk yang tak ada di katalog."""
+        if prods: return None
+        words = normalize(rest or ent.text).split()
+        unk = self.kb.unknown_terms(TOTAL_RX.sub(" ", rest or ent.text), known=self.clf.vocab_set)
+        if unk and len(words) <= 6 and (facets or HAVE_RX.search(" ".join(words)) or any(w.isdigit() for w in words)):
+            if self._search(rest or ent.text): return None                 # ada kata yang cocok katalog -> biar alur pencarian
+            s["pending"], s["miss"] = None, 0
+            top, _ = self.kb.query("", sort="best", k=3)
+            return self._out([self._t("no_product", lang), self._cards(top)], lang, "find_product", conf, "not_found")
 
     # ---------- jawaban produk ----------
     def _product_lines(self, prods, facets, lang):
@@ -269,6 +285,10 @@ class Bot:
                 s["pending"] = None
                 self._remember(s, intent, found)
                 return self._out([self._t("found", lang), self._cards(found)], lang, intent, conf, "search")
+            unk = kb.unknown_terms(rest, known=self.clf.vocab_set)
+            if unk and len(rest.split()) <= 6:                       # "do you have zelda": sebut nama yang tak ada -> jujur
+                top, _ = kb.query("", sort="best", k=3)
+                return self._out([self._t("no_product", lang), self._cards(top)], lang, intent, conf, "not_found")
             s["pending"] = "find_product"
             return self._out([{"type": "text", "text": kb.answer("find_product", lang)}], lang, intent, conf, "ask_slot")
         if not prods:
@@ -308,7 +328,7 @@ class Bot:
             else: intro = kb.t({"cheap": "cheapest_intro", "pricey": "pricey_intro"}.get(ent.sort, "best_intro"), lang)
         elif ent.max_price:
             items = kb.query(ent.text, sort="cheap", k=1)[0] or kb.query("", sort="cheap", k=1)[0]
-            intro = kb.t("budget_none", lang, max=mx)
+            intro = kb.t("range_none", lang, min=mn, max=mx) if ent.min_price else kb.t("budget_none", lang, max=mx)
         else:
             items, intro = kb.query("", sort="best", k=3)[0], kb.t("none_generic", lang)
         s["pending"], s["miss"] = None, 0

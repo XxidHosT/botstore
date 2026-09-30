@@ -1,0 +1,28 @@
+"""Set C: pesan yang ditulis sesudah perbaikan tahap 2, dijalankan sekali untuk mengukur generalisasi. Format sama dengan heldout.py."""
+
+CASES = [
+    ("c_howbuy_1", ["cara beli di sini gimana"], {"intent": "how_to_buy"}),
+    ("c_howbuy_2", ["how do i order a game"], {"intent": "how_to_buy"}),
+    ("c_howbuy_ctx", ["saya mau beli minecraft", "gimana caranya"], {"intent": "how_to_buy"}),
+    ("c_howpay_not_buy", ["gimana cara bayarnya"], {"intent": "payment_methods"}),
+    ("c_range_dash", ["100rb-200rb"], {"has": ["Steam Wallet", "Robux"], "no": ["Minecraft"]}),
+    ("c_range_between", ["antara 90rb dan 150rb ada apa"], {"has": ["Robux"], "no": ["Elden"]}),
+    ("c_range_nobudget_word", ["100-200rb"], {"has": ["Robux"]}),
+    ("c_qty_en", ["how much for 3 stardew"], {"has": ["267.000"]}),
+    ("c_qty_id_pcs", ["stardew 2 pcs berapa"], {"has": ["178.000"]}),
+    ("c_total_en", ["minecraft and stardew, total?"], {"has": ["448.000"]}),
+    ("c_unknown_en", ["do you have zelda"], {"action": "not_found"}),
+    ("c_unknown_id", ["ada valorant point ga"], {"action": "not_found"}),
+    ("c_free_en", ["any free games?"], {"has": ["paid"]}),
+    ("c_admin_1", ["mana adminnya kok gak bales"], {"handoff": True}),
+    ("c_late_delivery", ["udah bayar tapi belum masuk"], {"no": ["Aku teruskan"]}),
+    ("c_price_typo", ["brpa hrg elden ringg"], {"has": ["459.000"]}),
+    ("c_stock_typo", ["stk minecraft redy?"], {"has": ["tersedia"]}),
+    ("c_thanks", ["mksih kak"], {"intent": "thanks"}),
+    ("c_greet_en", ["hey there"], {"intent": "greeting"}),
+    ("c_refund", ["mau balikin uang, bisa?"], {"intent": "refund"}),
+    ("c_hours", ["cs online jam berapa"], {"intent": "hours"}),
+    ("c_expensive_ctx", ["harga elden ring", "wah mahal, yang lebih murah?"], {"has": ["Stardew"]}),
+    ("c_compare_en", ["stardew vs minecraft which is cheaper"], {"has": ["Stardew"]}),
+    ("c_oos_alt", ["cyberpunk ready?"], {"has": ["habis"]}),
+]

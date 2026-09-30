@@ -33,13 +33,20 @@ intents:
     answer: {id: "Mau cari yang mana? Sebutkan nama game, platform, atau jenis produknya.", en: "What are you looking for? Tell me the game, platform or product type."}
     label: {id: "Cari produk", en: "Find a product"}
   payment_methods:
-    examples: {id: [cara bayar, metode pembayaran, bayar pakai apa, bisa bayar dengan apa, cara pembayaran, bisa qris, bisa transfer, bisa ewallet, pembayaran, cara beli,
+    examples: {id: [cara bayar, metode pembayaran, bayar pakai apa, bisa bayar dengan apa, cara pembayaran, bisa qris, bisa transfer, bisa ewallet, pembayaran,
                     bisa gopay, bisa pakai gopay, bisa ovo, bisa dana, bisa shopeepay, bisa transfer bank, bisa virtual account, bisa kartu kredit, bisa indomaret, bisa alfamart, bisa cicil, bisa paylater],
-               en: [how to pay, payment methods, can i pay with, what payment do you accept, payment options, how do i buy, can i pay with ovo, do you accept gopay, do you accept credit card, can i pay with paypal, can i pay in installments, do you take dana]}
+               en: [how to pay, payment methods, can i pay with, what payment do you accept, payment options, can i pay with ovo, do you accept gopay, do you accept credit card, can i pay with paypal, can i pay in installments, do you take dana]}
     answer: {id: "Metode pembayaran yang tersedia ditampilkan saat checkout. Pilih produk, lanjut ke pembayaran, lalu pilih metode yang kamu mau.",
              en: "Available payment methods are shown at checkout. Pick a product, proceed to payment, then choose your method."}
     label: {id: "Cara bayar", en: "How to pay"}
     followups: [delivery, order_status]
+  how_to_buy:
+    examples: {id: [cara beli, cara order, cara pesan, cara belanja, langkah beli, cara membeli, cara checkout, mau beli caranya],
+               en: [how to buy, how do i buy, how do i order, how to order, how to checkout, steps to buy, how can i purchase, how does ordering work]}
+    answer: {id: "Caranya: buka halaman produk, klik beli, pilih metode pembayaran di checkout, lalu bayar. Produk digital dikirim setelah pembayaran terkonfirmasi.",
+             en: "Open the product page, click buy, choose a payment method at checkout, then pay. Digital products are delivered once payment is confirmed."}
+    label: {id: "Cara beli", en: "How to buy"}
+    followups: [payment_methods, delivery]
   delivery:
     examples: {id: [pengiriman, lama pengiriman, kapan dikirim, berapa lama sampai, dikirim lewat apa, kapan barang sampai, kapan produk dikirim, kirim berapa lama],
                en: [delivery, delivery time, how long does delivery take, when will i receive it, shipping time, when is it delivered]}
@@ -77,12 +84,12 @@ intents:
     answer: {id: "Panduan lengkap ada di halaman dokumentasi. Sebut topiknya, nanti aku arahkan.", en: "Full guides are in the documentation. Tell me the topic and I'll point you there."}
     label: {id: "Dokumentasi", en: "Docs"}
   human:
-    examples: {id: [bicara dengan admin, mau ngobrol dengan orang, minta admin, hubungkan ke admin, panggil admin, mau bicara sama manusia, cs manusia, ada orang beneran, admin mana, mana admin nya, admin nya mana lama banget, adminnya kemana],
+    examples: {id: [bicara dengan admin, mau ngobrol dengan orang, minta admin, hubungkan ke admin, panggil admin, mau bicara sama manusia, cs manusia, ada orang beneran, admin mana, mana admin nya, admin nya mana lama banget, adminnya kemana, kok admin tidak bales, admin gak bales, adminnya tidak membalas, kok tidak ada yang membalas, tidak ada yang bales dari tadi],
                en: [talk to a human, agent please, real person, connect me to an agent, speak to support, human please]}
     answer: {id: "", en: ""}
     label: {id: "Bicara dengan tim", en: "Talk to the team"}
   complaint:
-    examples: {id: [kecewa, penipu, komplain, lambat sekali, tidak puas, pelayanan buruk, parah banget, sudah lama tidak ada balasan], en: [scam, this is terrible, i am disappointed, complaint, worst service, very slow]}
+    examples: {id: [kecewa, penipu, komplain, lambat sekali, tidak puas, pelayanan buruk, parah banget, sudah lama tidak ada balasan, pelayanan lambat, kecewa dengan pelayanannya, pelayanan lambat banget kecewa], en: [scam, this is terrible, i am disappointed, complaint, worst service, very slow]}
     answer: {id: "", en: ""}
 
   ack:
@@ -183,6 +190,7 @@ texts:
   budget_intro: {id: "Pilihan yang tersedia dengan harga sampai {max}:", en: "Available options up to {max}:"}
   min_intro: {id: "Pilihan yang tersedia mulai dari {min}:", en: "Available options from {min}:"}
   range_intro: {id: "Pilihan yang tersedia antara {min} dan {max}:", en: "Available options between {min} and {max}:"}
+  range_none: {id: "Belum ada yang tersedia di antara {min} dan {max}. Yang paling murah saat ini:", en: "Nothing available between {min} and {max}. The cheapest right now:"}
   budget_none: {id: "Belum ada yang tersedia dengan harga sampai {max}. Yang paling murah saat ini:", en: "Nothing available up to {max}. The cheapest right now:"}
   none_generic: {id: "Belum ada produk tersedia yang cocok dengan kriteria itu. Coba longgarkan kriterianya, atau lihat yang rating tertingginya:", en: "No available product matches that. Try loosening the criteria, or see the top-rated ones:"}
   cheaper_intro: {id: "Ini pilihan yang lebih murah dan tersedia:", en: "Cheaper options that are available:"}
