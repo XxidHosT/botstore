@@ -26,3 +26,6 @@ Thumbs.db
 *.log
 data/state.db*
 data/log.jsonl.1
+data/learned.json
+data/review_dismissed.json
+data/.review.lock

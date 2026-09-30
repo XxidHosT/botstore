@@ -1,11 +1,12 @@
 import os, pathlib, secrets, time, collections
 from fastapi import FastAPI, Depends, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from .dialogue import Bot
 from .kb import DATA
+from . import review
 from .store import StateStore
 from .notify import make_notifier
 
@@ -82,6 +83,67 @@ def set_mode(cid: str, body: ModeIn): bot.set_mode(cid, body.mode); return {"con
 
 @app.post("/admin/reload", dependencies=[Depends(admin)])              # setelah menyunting knowledge.yaml / products.json
 def reload(): bot.reload(); return {"reloaded": True}
+
+
+# ---- dasbor review (halaman statis tanpa data; semua data lewat API yang butuh token) ----
+UI = pathlib.Path(__file__).resolve().parent / "admin_ui"
+CSP = {"Content-Security-Policy": "default-src 'self'; frame-ancestors 'none'", "Cache-Control": "no-store"}
+
+
+@app.get("/admin/review", include_in_schema=False)
+def review_page(): return FileResponse(UI / "review.html", headers=CSP)
+
+
+@app.get("/admin/review.js", include_in_schema=False)
+def review_js(): return FileResponse(UI / "review.js", media_type="text/javascript", headers=CSP)
+
+
+@app.get("/admin/review.css", include_in_schema=False)
+def review_css(): return FileResponse(UI / "review.css", media_type="text/css", headers=CSP)
+
+
+class LabelIn(BaseModel):
+    text: str = Field(min_length=1, max_length=300)
+    intent: str = Field(min_length=1, max_length=64)
+
+
+class TextIn(BaseModel):
+    text: str = Field(min_length=1, max_length=300)
+
+
+class LearnedIn(BaseModel):
+    intent: str
+    lang: str
+    text: str
+
+
+def _guard(fn, *a):
+    try: return fn(*a)
+    except review.ReviewError as e: raise HTTPException(400, str(e))
+
+
+@app.get("/admin/api/intents", dependencies=[Depends(admin)])
+def intents_api(): return {"items": [{"name": n, "label": (v.get("label") or {}).get("id", "")} for n, v in bot.kb.intents.items()]}
+
+
+@app.get("/admin/api/review", dependencies=[Depends(admin)])
+def review_api(min_count: int = 1): return review.overview(bot.clf, min_count)
+
+
+@app.post("/admin/api/review/label", dependencies=[Depends(admin)])
+def review_label(b: LabelIn): return _guard(review.label, bot.kb, b.text, b.intent)
+
+
+@app.post("/admin/api/review/dismiss", dependencies=[Depends(admin)])
+def review_dismiss(b: TextIn): review.dismiss(b.text); return {"ok": True}
+
+
+@app.get("/admin/api/learned", dependencies=[Depends(admin)])
+def learned_api(): return {"items": review.learned()}
+
+
+@app.post("/admin/api/learned/remove", dependencies=[Depends(admin)])
+def learned_remove(b: LearnedIn): return _guard(review.remove, b.intent, b.lang, b.text)
 
 
 static = pathlib.Path(__file__).resolve().parent.parent / "static"

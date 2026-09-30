@@ -1,7 +1,7 @@
 # Deploy ke VPS lewat SSH memakai secret milikmu sendiri (Settings > Secrets > Actions):
 #   VPS_HOST, VPS_USER, VPS_SSH_KEY (private key khusus deploy), VPS_PATH (mis. /opt/botstore)
 # Kode dikirim dari runner ke VPS lewat rsync (VPS tidak perlu akses ke GitHub). Prasyarat di VPS: docker, docker compose, rsync,
-# dan file .env di VPS_PATH. .env, data/state.db dan data/log.jsonl tidak pernah ditimpa atau dihapus.
+# dan file .env di VPS_PATH. .env dan berkas runtime di data/ (state.db, log.jsonl, learned.json, review_dismissed.json) tidak pernah ditimpa atau dihapus.
 name: deploy
 on:
   workflow_dispatch:
@@ -35,7 +35,7 @@ jobs:
           $SSH $TARGET "mkdir -p $DIR/data && chmod a+rwx $DIR/data"      # container berjalan non-root dan menulis state.db di sini
           rsync -az --delete -e "$SSH" \
             --exclude '.git' --exclude '.github' --exclude '.env' --exclude '__pycache__' --exclude '.pytest_cache' \
-            --exclude 'data/state.db*' --exclude 'data/log.jsonl*' ./ "$TARGET:$DIR/"
+            --exclude 'data/state.db*' --exclude 'data/log.jsonl*' --exclude 'data/learned.json' --exclude 'data/review_dismissed.json' --exclude 'data/.review.lock' ./ "$TARGET:$DIR/"
       - name: Bangun & jalankan ulang
         run: $SSH $TARGET "cd $DIR && test -f .env && docker compose -f docker-compose.prod.yml up -d --build"
       - name: Cek kesehatan

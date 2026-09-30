@@ -5,7 +5,7 @@ Otak chat buatan sendiri: tanpa API AI pihak ketiga, tanpa internet saat jalan. 
 ## Jalankan
     docker compose up --build        # atau: pip install -r requirements.txt && uvicorn app.main:app
     curl localhost:8000/health       # otak saja, tanpa UI
-    pytest -q tests                  # 268 tes (regresi perilaku + entitas + invarian keamanan data)
+    pytest -q tests                  # 280 tes (regresi perilaku + entitas + invarian keamanan data)
     python -m tools.evaluate         # skor set uji A (67 kasus)   -v untuk lihat balasan yang gagal
     python -m tools.evaluate tests.heldout_b   # skor set uji B (54 kasus); juga heldout_c, _d, _e
 
@@ -95,3 +95,6 @@ Belum bisa saya lakukan: mengganti `knowledge.yaml`/`products.json` dengan kebij
 
 ## Panel admin sendiri
 Webhook handoff + API percakapan: lihat `docs/PANEL_ADMIN.md`.
+
+## Fitur admin & rekomendasi
+Discord, dasbor review `/admin/review`, dan tag produk: lihat `docs/FITUR_BARU.md`.
