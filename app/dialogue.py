@@ -1,6 +1,6 @@
 """Manajer dialog: slot, tangga fallback, eskalasi. Setiap pesan pasti dibalas, kecuali mode AGENT."""
 import json, re, time, pathlib, collections
-from .kb import KB, DATA
+from .kb import KB, DATA, make_kb
 from .nlu import IntentClassifier, detect_lang, normalize, FUNC
 from .entities import extract
 
@@ -11,6 +11,7 @@ CATALOG_INTENTS = {"compare", "alternative", "too_expensive"}     # dijawab dari
 CATALOG_OK = SLOT_INTENTS | {"too_expensive"}                     # intent yang boleh dibelokkan ke pencarian berfilter
 ESCALATE = {"human", "complaint"}
 ORDER_INTENTS = {"order_status", "delivery", "refund", "license", "payment_issue", "human", "complaint"}
+NEUTRAL = {"sama", "beli", "pesan", "order", "mau", "ingin", "pengen", "buat"}        # kata yang tak mengubah maksud "harga X berapa"
 FILLER = FUNC | {"aja", "saja", "semua", "lah", "deh", "tapi", "atau", "hingga", "antara", "between", "but", "or"}
 HISTORY = 20                                                      # jumlah pesan terakhir yang disimpan per percakapan
 LOG_MAX = 20 * 1024 * 1024                                        # ukuran log sebelum dirotasi
@@ -34,17 +35,28 @@ MASK = [(re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+"), "<email>"), (re.compile(r"\+?\d
 def rp(n): return "Rp" + f"{n:,}".replace(",", ".")
 
 
+def pfmt(p):
+    """Harga produk untuk teks/kartu. Game dengan beberapa varian (platform/region) memakai harga termurah: tulis "mulai" agar jujur."""
+    return ("mulai " if p.get("variants", 1) > 1 else "") + rp(p["price"])
+
+
+def stock_txt(p):
+    """Stok besar ditulis "50+": angka pastinya berubah tiap saat dan tak berguna bagi pelanggan."""
+    return "50+" if p["stock"] > 50 else str(p["stock"])
+
+
 class Bot:
     def __init__(self, store=None, notifier=None):
         self.notifier = notifier                            # fungsi(event: dict) -> None; webhook ke panel admin
         self.store = store                                  # None = state di memori proses (tes/dev); StateStore = persisten
-        self.kb = KB()
+        self.kb = make_kb()
         self.clf = IntentClassifier(self.kb.intents)
+        self.kb.noise = self.clf.vocab_set
         self.state = {}
         self.hits = collections.defaultdict(collections.deque)
 
     def reload(self):
-        self.kb.load(); self.clf = IntentClassifier(self.kb.intents)
+        self.kb.load(); self.clf = IntentClassifier(self.kb.intents); self.kb.noise = self.clf.vocab_set
 
     # ---------- util ----------
     def st(self, cid):
@@ -81,7 +93,7 @@ class Bot:
         return {"type": "quick_replies", "items": [self.kb.label(i, lang) for i in intents if self.kb.intents.get(i, {}).get("label")]}
 
     def _cards(self, prods):
-        return {"type": "products", "items": [{"id": p["id"], "name": p["name"], "price": rp(p["price"]), "stock": p["stock"], "rating": p["rating"], "url": p["url"]} for p in prods]}
+        return {"type": "products", "items": [{"id": p["id"], "name": p["name"], "price": pfmt(p), "stock": p["stock"], "rating": p.get("rating_label") or p["rating"], "url": p["url"]} for p in prods]}
 
     def _out(self, blocks, lang, intent=None, conf=0.0, action="answer", handoff=False, silent=False):
         return {"blocks": blocks, "lang": lang, "intent": intent, "confidence": round(conf, 3), "action": action, "handoff": handoff, "silent": silent}
@@ -167,10 +179,11 @@ class Bot:
         kb, lines, total = self.kb, [], 0
         for p in prods:
             n = qty[p["id"]]; total += n * p["price"]
-            lines.append(kb.t("qty_line", lang, name=p["name"], n=n, price=rp(p["price"]), sub=rp(n * p["price"])))
-            if p["stock"] > 0 and n > p["stock"]: lines.append(kb.t("qty_over", lang, name=p["name"], stock=p["stock"]))
+            lines.append(kb.t("qty_line", lang, name=p["name"], n=n, price=pfmt(p), sub=("mulai " if p.get("variants", 1) > 1 else "") + rp(n * p["price"])))
+            if p["stock"] > 0 and n > p["stock"]: lines.append(kb.t("qty_over", lang, name=p["name"], stock=stock_txt(p)))
             elif p["stock"] <= 0: lines.append(kb.t("stock_out", lang, name=p["name"]))
-        if len(prods) > 1 or any(n > 1 for n in qty.values()) and len(prods) > 1: lines.append(kb.t("total_line", lang, total=rp(total)))
+        if len(prods) > 1 or any(n > 1 for n in qty.values()) and len(prods) > 1:
+            lines.append(kb.t("total_line_from" if any(p.get("variants", 1) > 1 for p in prods) else "total_line", lang, total=rp(total)))
         return [{"type": "text", "text": " ".join(lines)}]
 
     def _remember(self, s, intent, prods=None, facets=None):
@@ -210,8 +223,8 @@ class Bot:
             intent, conf = s["pending"], 1.0
             if intent in ("price", "stock"): facets = facets or {intent}
         elif prods and facets:
-            rem = FACET_WORDS.sub(" ", rest)                           # apa maksud kalimat setelah kata harga/stok dibuang?
-            r2 = self.clf.classify(rem) if [w for w in normalize(rem).split() if w not in FILLER and w != "sama" and not w.isdigit()] else []
+            rem = TOTAL_RX.sub(" ", FACET_WORDS.sub(" ", rest))         # apa maksud kalimat setelah kata harga/stok/total dibuang?
+            r2 = self.clf.classify(rem) if [w for w in normalize(rem).split() if w not in FILLER and w not in NEUTRAL and not w.isdigit()] else []
             if r2 and r2[0][0] not in SLOT_INTENTS | SOCIAL and r2[0][1] >= (MID if weak else HIGH):
                 intent, conf, ranked = r2[0][0], r2[0][1], r2                # mis. "elden ring harganya mahal banget"
             else:
@@ -233,6 +246,8 @@ class Bot:
         if not prods and intent in (SLOT_INTENTS | {"alternative", "too_expensive"}) and conf >= MID:
             recent = self._recent_product(s)
             follow = s["last_product_turn"] == s["turn"] - 1 and intent in ("price", "stock") and len(q.split()) <= 3
+            if recent and (REFER.search(q) or follow) and intent in ("price", "stock") and kb.unknown_terms(rest, known=self.clf.vocab_set):
+                recent = None                                          # menyebut nama yang tak dikenal: jangan diam-diam memakai produk sebelumnya
             if recent and (REFER.search(q) or follow or intent in ("alternative", "too_expensive")): prods = [recent]
         if intent in ("price", "stock") and prods and not facets: facets = {intent}
 
@@ -252,6 +267,10 @@ class Bot:
         if not prods and (ent.max_price or ent.min_price or ent.sort or tags) and (intent in CATALOG_OK or intent in ("compare", "alternative") or conf < MID):
             out = self._catalog(s, ent, lang, conf)
             if out: return out
+
+        if intent in ("deny", "ack") and conf >= HIGH and not prods and len(rest.split()) >= 2:      # "ada zelda gak": 'gak' bukan penolakan
+            nf = self._unknown_product(s, prods, rest, ent, facets, lang, conf)
+            if nf: return nf
 
         if conf >= HIGH:
             s["miss"] = 0
@@ -303,7 +322,7 @@ class Bot:
     def _product_lines(self, prods, facets, lang):
         kb, out = self.kb, []
         for p in prods:
-            kw = dict(name=p["name"], price=rp(p["price"]), stock=p["stock"])
+            kw = dict(name=p["name"], price=pfmt(p), stock=stock_txt(p))
             if {"price", "stock"} <= facets: out.append(kb.t("price_stock_in" if p["stock"] > 0 else "price_stock_out", lang, **kw))
             elif "stock" in facets: out.append(kb.t("stock_in" if p["stock"] > 0 else "stock_out", lang, **kw))
             else: out.append(kb.t("price_line", lang, **kw))
@@ -390,10 +409,12 @@ class Bot:
             if len(prods) < 2:
                 s["pending"] = "compare"
                 return self._out([{"type": "text", "text": kb.answer("compare", lang)}], lang, intent, conf, "ask_slot")
-            lines = " ".join(kb.t("compare_line", lang, name=p["name"], price=rp(p["price"]), rating=p["rating"],
+            rate = lambda p: p["rating"] or 0
+            lines = " ".join(kb.t("compare_line", lang, name=p["name"], price=pfmt(p),
+                                  rating=kb.t("metacritic_val", lang, m=p["rating_label"].split()[-1]) if p.get("rating_label") else (kb.t("rating_val", lang, r=p["rating"]) if p["rating"] else kb.t("rating_none", lang)),
                                   stock_word=kb.t("word_in" if p["stock"] > 0 else "word_out", lang)) for p in prods)
             cheapest = min(prods, key=lambda p: p["price"])
-            top = [p for p in prods if p["rating"] == max(x["rating"] for x in prods)]
+            top = [p for p in prods if rate(p) == max(rate(x) for x in prods)]
             tail = kb.t("rating_tie", lang) if len(top) == len(prods) else \
                 kb.t("best_is", lang, name=" / ".join(p["name"] for p in top)) + " " + kb.t("compare_note", lang)
             s["pending"] = None
