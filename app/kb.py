@@ -7,6 +7,8 @@ DATA = pathlib.Path(__file__).resolve().parent.parent / "data"
 
 
 class KB:
+    noise = frozenset()                                       # kosakata intent (harga, stok, berapa...): bukan nama produk; diisi Bot setelah klasifikator dibuat
+
     def __init__(self):
         self.load()
 
@@ -20,7 +22,7 @@ class KB:
         self._stamp = self.stamp()
         k = yaml.safe_load((DATA / "knowledge.yaml").read_text(encoding="utf-8"))
         self.site, self.intents, self.texts = k["site"], k["intents"], k["texts"]
-        self.products = json.loads((DATA / "products.json").read_text(encoding="utf-8"))
+        self.products = self._load_products()
         self.tag_aliases = {tag: [normalize(a) for a in al] for tag, al in (k.get("tag_aliases") or {}).items()}
         learned = DATA / "learned.json"                       # contoh kalimat dari dasbor review; terpisah dari knowledge.yaml agar mudah dibatalkan
         if learned.exists():
@@ -28,6 +30,13 @@ class KB:
                 if intent in self.intents:
                     for lang, exs in per_lang.items():
                         self.intents[intent]["examples"].setdefault(lang, []).extend(exs)
+
+    def _load_products(self):
+        return json.loads((DATA / "products.json").read_text(encoding="utf-8"))
+
+    def _candidates(self, q):
+        """Calon produk untuk dicocokkan dengan pesan. Katalog lokal: semuanya; katalog jarak jauh: hasil pencarian."""
+        return list(self.products)
 
     def t(self, key, lang, **kw):
         return self.texts[key].get(lang, self.texts[key]["id"]).format(email=self.site["support_email"], **kw)
@@ -56,7 +65,7 @@ class KB:
     def match_products(self, text, limit=3):
         """Semua produk yang disebut di pesan (urut kemunculan pencarian terbaik). Return (daftar_produk, sisa_teks)."""
         q0 = q = normalize(text)
-        found, left = [], list(self.products)
+        found, left = [], self._candidates(q0)
         while len(found) < limit:
             best = self._best_alias(q, left)
             if not best:
@@ -95,11 +104,12 @@ class KB:
     def _words(self, p):
         return set(normalize(" ".join([p["name"], p["category"]] + p["aliases"])).split())
 
-    def extract_tags(self, text):
+    def extract_tags(self, text, only=None):
         """(tag kanonik yang disebut, teks tanpa frasa tag). Kata tag tak boleh ikut dicocokkan ke nama produk atau dianggap 'tak dikenal'."""
         import re
         q, found = normalize(text), []
         for tag, aliases in self.tag_aliases.items():
+            if only is not None and tag not in only: continue
             for a in sorted(aliases, key=len, reverse=True):
                 if re.search(rf"\b{re.escape(a)}\b", q):
                     found.append(tag); q = re.sub(rf"\b{re.escape(a)}\b", " ", q)
@@ -152,3 +162,13 @@ class KB:
             if shared: cands.append((-shared, -p["rating"], p["price"], p))
         cands.sort(key=lambda x: x[:3])
         return [c[3] for c in cands[:k]]
+
+
+def make_kb():
+    """Katalog dari website bila CATALOG_URL + CATALOG_TOKEN diisi; selain itu berkas lokal (dev/tes)."""
+    import os
+    url, token = os.getenv("CATALOG_URL", ""), os.getenv("CATALOG_TOKEN", "")
+    if url and token:
+        from .remote_kb import RemoteKB
+        return RemoteKB(url, token, site_url=os.getenv("SITE_URL", ""))
+    return KB()

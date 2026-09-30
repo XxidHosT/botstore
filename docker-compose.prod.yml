@@ -1,18 +1,12 @@
-# Produksi: bot hanya terjangkau lewat Caddy (HTTPS otomatis). Port 8000 tidak dibuka ke internet.
+# Produksi bersama website: bot hanya listen di 127.0.0.1:8000 (host network), dipanggil server-ke-server oleh Next.js,
+# dan memanggil balik Next.js di 127.0.0.1:3000. Tidak ada port yang dibuka ke internet dan tidak ada proxy sendiri
+# (server sudah punya Caddy untuk situs, jadi Caddy kedua akan bentrok di port 80/443).
 services:
   chat-brain:
     build: .
+    network_mode: host
     env_file: .env
     environment: {STATE_DB: /srv/data/state.db}
     volumes: ["./data:/srv/data"]
     restart: unless-stopped
-    expose: ["8000"]
-  caddy:
-    image: caddy:2
-    restart: unless-stopped
-    ports: ["80:80", "443:443"]
-    environment: {DOMAIN: "${DOMAIN}"}
-    volumes: ["./Caddyfile:/etc/caddy/Caddyfile:ro", "caddy_data:/data"]
-    depends_on: [chat-brain]
-volumes:
-  caddy_data:
+    command: ["uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000", "--workers", "2", "--proxy-headers"]
