@@ -57,3 +57,13 @@ def test_where_is_admin_escalates_but_late_delivery_does_not():
     assert run(["MANA ADMIN"])["handoff"] is True
     assert run(["admin nya mana lama banget"])["handoff"] is True
     assert run(["kok lama banget belum dikirim"])["intent"] != "human"
+
+
+def test_typo_messages_still_reach_the_right_intent():
+    for m, intent in [("apkh bs refnd", "refund"), ("kpn brg nyampe", "delivery"), ("garnsi ada gk", "warranty"), ("bagaimna cra order", "how_to_buy")]:
+        assert run([m])["intent"] == intent, m
+
+
+def test_augmented_typos_do_not_enter_known_vocabulary():
+    b = Bot()
+    assert "refnd" not in b.clf.vocab_set and "refund" in b.clf.vocab_set

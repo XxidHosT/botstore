@@ -42,6 +42,20 @@ def detect_lang(text: str, prev: str = "id") -> str:
 FUNC = set("yang dan di ke dari untuk dengan saya aku kamu apa ini itu the a an to of is are i you my it in on sih dong ya nih deh kok kak min tolong please nya mau ada bisa".split())
 
 
+def augment(text: str, rng, n: int = 3):
+    """Varian bertypo dari satu contoh kalimat (huruf hilang/tertukar/dobel) supaya pencocok tahan salah ketik. Deterministik lewat rng."""
+    out = []
+    for _ in range(n):
+        w = text.split()
+        if not w: break
+        i = rng.randrange(len(w)); word = w[i]
+        if len(word) >= 5:
+            j = rng.randrange(1, len(word) - 1); op = rng.randrange(3)
+            word = word[:j] + word[j + 1:] if op == 0 else word[:j] + word[j + 1] + word[j] + word[j + 2:] if op == 1 and j + 2 <= len(word) else word[:j] + word[j] + word[j:]
+            w[i] = word; out.append(" ".join(w))
+    return out
+
+
 class IntentClassifier:
     def __init__(self, intents: dict):
         texts, labels = [], []
@@ -51,8 +65,13 @@ class IntentClassifier:
                     texts.append(normalize(ex)); labels.append(name)
             for lab in spec.get("label", {}).values():      # label tombol quick-reply harus kembali ke intent-nya
                 texts.append(normalize(lab)); labels.append(name)
+        import random
+        n_orig, rng = len(texts), random.Random(7)
+        for t, l in list(zip(texts, labels)):
+            for v in augment(t, rng):
+                texts.append(v); labels.append(l)
         self.labels = labels
-        self.vocab = sorted({w for t in texts for w in t.split()} - FUNC)
+        self.vocab = sorted({w for t in texts[:n_orig] for w in t.split()} - FUNC)
         self.vocab_set = set(self.vocab)
         self._known = lru_cache(maxsize=4096)(self._is_known)
         self.vec = TfidfVectorizer(analyzer="char_wb", ngram_range=(2, 4), sublinear_tf=True)
