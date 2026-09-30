@@ -92,7 +92,7 @@ def test_partial_product_name_is_not_a_product():
 
 def test_unknown_terms_are_disclosed_not_ignored():
     out = flat(Bot().reply("u", "rekomendasi game horor"))
-    assert "horor" in out and "genre" in out
+    assert "horor" in out and "tag" in out                    # katalog tak punya produk bertag horor -> jujur, tidak menebak
 
 
 def test_out_of_stock_offers_available_alternatives_only():

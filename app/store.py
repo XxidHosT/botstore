@@ -27,3 +27,15 @@ class StateStore:
         with self._conn() as c:
             c.execute("INSERT OR REPLACE INTO state (cid, data, ts) VALUES (?, ?, ?)", (cid, json.dumps(s, default=sorted), int(time.time())))
             c.execute("DELETE FROM state WHERE ts < ?", (int(time.time()) - self.ttl,))
+
+    def list_handoffs(self, limit=100):
+        """Percakapan yang sedang dipegang/menunggu admin, terbaru dulu. Cukup untuk skala kecil; pakai indeks/kolom sendiri bila besar."""
+        with self._conn() as c:
+            rows = c.execute("SELECT cid, data, ts FROM state ORDER BY ts DESC").fetchall()
+        out = []
+        for cid, data, ts in rows:
+            s = json.loads(data)
+            if s.get("handoff") and s.get("mode") == "AGENT":
+                out.append({"conversation_id": cid, "ts": ts, "lang": s.get("lang"), "last": (s.get("history") or [{}])[-1].get("text", "")})
+                if len(out) >= limit: break
+        return out

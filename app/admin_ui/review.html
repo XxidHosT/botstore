@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Review bot</title>
+<link rel="stylesheet" href="/admin/review.css"></head>
+<body>
+<header><h1>Review pesan bot</h1><div id="stats"></div><button id="logout" hidden>Keluar</button></header>
+<main>
+  <p class="hint">Pesan di bawah membuat bot ragu atau gagal. Pilih intent yang benar lalu <b>Simpan</b> agar bot belajar, atau <b>Abaikan</b> bila pesan sampah.
+     Contoh yang disimpan bisa dibatalkan di bagian bawah.</p>
+  <div id="msg" role="status"></div>
+  <table id="items"><thead><tr><th>#</th><th>Pesan</th><th>Tebakan bot</th><th>Intent yang benar</th><th></th></tr></thead><tbody></tbody></table>
+  <h2>Contoh yang sudah dipelajari</h2>
+  <table id="learned"><thead><tr><th>Intent</th><th>Bahasa</th><th>Contoh</th><th></th></tr></thead><tbody></tbody></table>
+</main>
+<script src="/admin/review.js"></script>
+</body></html>

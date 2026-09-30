@@ -53,7 +53,7 @@ CASES = [
     ("priciest", ["produk termahal apa?"], {"has": ["Elden Ring"]}),
     ("budget_none_honest", ["game dibawah 50rb"], {"no": ["Elden Ring"], "has": ["89.000"]}),
     ("recommend_id", ["rekomen game dong"], {"has": ["Rp"]}),
-    ("recommend_genre_honest", ["rekomendasi game horor"], {"has": ["genre"]}),
+    ("recommend_genre_honest", ["rekomendasi game horor"], {"has": ["horor", "tag"]}),
 
     # ---- konteks percakapan ----
     ("ellipsis_price", ["harga elden ring", "kalau stardew?"], {"has": ["89.000"]}),

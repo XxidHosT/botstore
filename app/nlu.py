@@ -18,7 +18,7 @@ SLANG = {
     "pls": "please", "plz": "please", "ty": "thanks", "kemahalan": "terlalu mahal", "kemaren": "kemarin", "mksih": "makasih", "makasih": "makasih", "bli": "beli", "blii": "beli", "pesen": "pesan", "ordr": "order", "cr": "cara", "cra": "cara", "carany": "caranya", "gmna": "bagaimana", "tau": "tahu", "sm": "sama", "dr": "dari", "klu": "kalau", "brapa": "berapa", "brpaa": "berapa", "hbs": "habis", "redy": "ready", "redi": "ready", "stk": "stok", "stck": "stock",
 }
 ID_WORDS = set("yang dan di ke dari untuk dengan saya aku kamu apa berapa bagaimana bisa tidak sudah belum mau ada cara harga pesanan bayar kirim kapan dimana kak min tolong gak ga nggak udah banget dong sih ya".split())
-EN_WORDS = set("any there which hey total cheaper free cheapest games game buy the is are a an to of for with i you what how much can do does not have want need my order where when price pay please hello hi thanks it in on".split())
+EN_WORDS = set("any there which hey cheaper free cheapest buy the is are a an to of for with i you what how much can do does not have want need my order where when price pay please hello hi thanks it in on".split())
 
 
 def normalize(text: str) -> str:

@@ -12,6 +12,7 @@ CATALOG_OK = SLOT_INTENTS | {"too_expensive"}                     # intent yang 
 ESCALATE = {"human", "complaint"}
 ORDER_INTENTS = {"order_status", "delivery", "refund", "license", "payment_issue", "human", "complaint"}
 FILLER = FUNC | {"aja", "saja", "semua", "lah", "deh", "tapi", "atau", "hingga", "antara", "between", "but", "or"}
+HISTORY = 20                                                      # jumlah pesan terakhir yang disimpan per percakapan
 LOG_MAX = 20 * 1024 * 1024                                        # ukuran log sebelum dirotasi
 RECENT = 6                                                        # produk "terakhir" hanya berlaku beberapa giliran
 REFER = re.compile(r"\b(itu|tadi|yang tadi|nya|that|it|this one)\b")
@@ -34,7 +35,8 @@ def rp(n): return "Rp" + f"{n:,}".replace(",", ".")
 
 
 class Bot:
-    def __init__(self, store=None):
+    def __init__(self, store=None, notifier=None):
+        self.notifier = notifier                            # fungsi(event: dict) -> None; webhook ke panel admin
         self.store = store                                  # None = state di memori proses (tes/dev); StateStore = persisten
         self.kb = KB()
         self.clf = IntentClassifier(self.kb.intents)
@@ -56,7 +58,7 @@ class Bot:
     @staticmethod
     def _new_state():
         return ({"mode": "AI", "lang": "id", "pending": None, "miss": 0, "last_product": None, "handoff": False,
-                                          "turn": 0, "last_product_turn": -99, "last_products": [], "last_intent": None, "last_facets": None})
+                                          "turn": 0, "last_product_turn": -99, "last_products": [], "last_intent": None, "last_facets": None, "history": []})
 
     def _log(self, cid, text, out):
         for rx, rep in MASK: text = rx.sub(rep, text)
@@ -85,15 +87,35 @@ class Bot:
         return {"blocks": blocks, "lang": lang, "intent": intent, "confidence": round(conf, 3), "action": action, "handoff": handoff, "silent": silent}
 
     # ---------- utama ----------
+    def _masked(self, text):
+        for rx, rep in MASK: text = rx.sub(rep, text)
+        return text
+
+    def _emit(self, event, cid, s, **extra):
+        if not self.notifier: return
+        try:
+            self.notifier({"event": event, "conversation_id": cid, "history": s["history"][-10:], **extra})
+        except Exception:
+            pass                                            # webhook tidak boleh mengganggu chat
+
     def reply(self, cid, text):
+        if self.kb.stamp() != self.kb._stamp:                # data diubah (admin/dasbor/sunting berkas): muat ulang di worker ini juga
+            try: self.reload()
+            except Exception: pass                           # berkas setengah tertulis: pakai data lama dulu
         s = self.st(cid)
         try:
             if s["mode"] == "AGENT":
+                s["history"] = (s["history"] + [{"role": "user", "text": self._masked(text)}])[-HISTORY:]
+                self._save(cid, s)
+                self._emit("customer_message", cid, s, text=self._masked(text))      # admin sedang menangani: teruskan ke panel
                 return self._out([], s["lang"], action="silent", silent=True)
             if not self._rate_ok(cid):
                 return self._out([{"type": "text", "text": self.kb.t("rate_limit", s["lang"])}], s["lang"], action="rate_limit")
             out = self._reply(s, text)
+            bot_text = " ".join(b["text"] for b in out["blocks"] if b["type"] == "text")
+            s["history"] = (s["history"] + [{"role": "user", "text": self._masked(text)}, {"role": "bot", "text": bot_text}])[-HISTORY:]
             self._save(cid, s)
+            if out["handoff"]: self._emit("handoff", cid, s, reason=out["action"], intent=out["intent"], lang=out["lang"])
         except Exception:                                   # jaring pengaman: chat tidak boleh mati diam
             out = self._out([{"type": "text", "text": self.kb.t("error", s["lang"])}], s["lang"], action="error")
         self._log(cid, text, out)
@@ -226,7 +248,8 @@ class Bot:
             return self._out([self._t("clarify", lang), self._chips(["human", "find_product"], lang)], lang, intent, conf, "clarify")
 
         # 4) pencarian berfilter: "game di bawah 100rb", "yang termurah", "rekomendasi"
-        if not prods and (ent.max_price or ent.min_price or ent.sort) and (intent in CATALOG_OK or intent in ("compare", "alternative") or conf < MID):
+        tags, _ = kb.extract_tags(ent.text) if not prods else ([], "")
+        if not prods and (ent.max_price or ent.min_price or ent.sort or tags) and (intent in CATALOG_OK or intent in ("compare", "alternative") or conf < MID):
             out = self._catalog(s, ent, lang, conf)
             if out: return out
 
@@ -330,8 +353,14 @@ class Bot:
     # ---------- pencarian berfilter & intent katalog ----------
     def _catalog(self, s, ent, lang, conf):
         kb = self.kb
-        items, had_hit = kb.query(ent.text, ent.max_price, ent.min_price, ent.sort)
-        unk = kb.unknown_terms(ent.text, known=self.clf.vocab_set)
+        tags, clean = kb.extract_tags(ent.text)
+        if tags and not kb.has_tags(tags):                           # katalog memang tak punya tag itu (mis. horor): jujur, jangan menebak
+            s["pending"], s["miss"] = None, 0
+            top, _ = kb.query("", sort="best", k=3)
+            self._remember(s, "find_product", top)
+            return self._out([self._t("no_tag", lang, tags=" + ".join(tags)), self._cards(top)], lang, "find_product", conf, "search")
+        items, had_hit = kb.query(clean, ent.max_price, ent.min_price, ent.sort, tags=tags)
+        unk = kb.unknown_terms(clean, known=self.clf.vocab_set)
         if unk and not had_hit and ent.sort != "best":
             return None                                              # yang dicari tak ada di katalog -> biarkan alur "tidak ditemukan"
         note = kb.t("no_filter", lang, terms=" ".join(unk)) + " " if unk else ""
@@ -341,6 +370,11 @@ class Bot:
             elif ent.max_price: intro = kb.t("budget_intro", lang, max=mx)
             elif ent.min_price: intro = kb.t("min_intro", lang, min=mn)
             else: intro = kb.t({"cheap": "cheapest_intro", "pricey": "pricey_intro"}.get(ent.sort, "best_intro"), lang)
+            if tags: intro = kb.t("tag_intro", lang, tags=", ".join(tags)) + (" " + intro if (ent.max_price or ent.min_price or ent.sort in ("cheap", "pricey")) else "")
+        elif tags and (ent.max_price or ent.min_price):
+            near = kb.query(clean, tags=tags, sort="cheap", k=2)[0]           # tag cocok tapi di luar batas harga: tunjukkan yang terdekat
+            if near: items, intro = near, kb.t("tag_price_none", lang, tags=", ".join(tags))
+            else: items, intro = kb.query("", sort="best", k=3)[0], kb.t("none_generic", lang)
         elif ent.max_price:
             items = kb.query(ent.text, sort="cheap", k=1)[0] or kb.query("", sort="cheap", k=1)[0]
             intro = kb.t("range_none", lang, min=mn, max=mx) if ent.min_price else kb.t("budget_none", lang, max=mx)
@@ -385,5 +419,6 @@ class Bot:
 
     def set_mode(self, cid, mode):
         s = self.st(cid); s["mode"] = mode; s["miss"] = 0
+        if mode == "AI": s["handoff"] = False               # admin selesai: percakapan tidak lagi "menunggu"
         self._save(cid, s)
         return s
