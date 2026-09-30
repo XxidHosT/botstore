@@ -77,7 +77,7 @@ intents:
     answer: {id: "Panduan lengkap ada di halaman dokumentasi. Sebut topiknya, nanti aku arahkan.", en: "Full guides are in the documentation. Tell me the topic and I'll point you there."}
     label: {id: "Dokumentasi", en: "Docs"}
   human:
-    examples: {id: [bicara dengan admin, mau ngobrol dengan orang, minta admin, hubungkan ke admin, panggil admin, mau bicara sama manusia, cs manusia, ada orang beneran],
+    examples: {id: [bicara dengan admin, mau ngobrol dengan orang, minta admin, hubungkan ke admin, panggil admin, mau bicara sama manusia, cs manusia, ada orang beneran, admin mana, mana admin nya, admin nya mana lama banget, adminnya kemana],
                en: [talk to a human, agent please, real person, connect me to an agent, speak to support, human please]}
     answer: {id: "", en: ""}
     label: {id: "Bicara dengan tim", en: "Talk to the team"}
@@ -148,6 +148,10 @@ intents:
     answer: {id: "Alternatif untuk produk yang mana? Sebutkan nama produknya.", en: "Alternatives for which product? Tell me the product name."}
 
 texts:
+  no_free: {id: "Semua produk di katalogku berbayar, belum ada yang gratis. Yang paling murah saat ini:", en: "Everything in my catalog is paid, nothing is free. The cheapest right now:"}
+  qty_line: {id: "{name} x{n}: {price} x {n} = {sub}.", en: "{name} x{n}: {price} x {n} = {sub}."}
+  qty_over: {id: "(Stok {name} hanya {stock}.)", en: "(Only {stock} of {name} in stock.)"}
+  total_line: {id: "Total: {total}.", en: "Total: {total}."}
   clarify: {id: "Maksudmu salah satu ini?", en: "Did you mean one of these?"}
   miss1: {id: "Aku belum yakin maksudmu. Boleh diperjelas, atau pilih topik di bawah?", en: "I'm not sure what you mean. Could you rephrase, or pick a topic below?"}
   miss2: {id: "Maaf, aku masih belum menangkap. Ini topik yang bisa kubantu:", en: "Sorry, I still didn't get that. Here's what I can help with:"}

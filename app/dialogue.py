@@ -11,7 +11,7 @@ CATALOG_INTENTS = {"compare", "alternative", "too_expensive"}     # dijawab dari
 CATALOG_OK = SLOT_INTENTS | {"too_expensive"}                     # intent yang boleh dibelokkan ke pencarian berfilter
 ESCALATE = {"human", "complaint"}
 ORDER_INTENTS = {"order_status", "delivery", "refund", "license", "payment_issue", "human", "complaint"}
-FILLER = FUNC | {"aja", "saja", "semua", "lah", "deh"}
+FILLER = FUNC | {"aja", "saja", "semua", "lah", "deh", "tapi", "atau", "hingga", "antara", "between", "but", "or"}
 RECENT = 6                                                        # produk "terakhir" hanya berlaku beberapa giliran
 REFER = re.compile(r"\b(itu|tadi|yang tadi|nya|that|it|this one)\b")
 ELLIPSIS = re.compile(r"^(kalau|bagaimana dengan|bagaimana kalau|terus|lalu|dan|how about|what about|and|then)\b")
@@ -20,6 +20,10 @@ FACET_WORDS = re.compile(r"\b(harga\w*|hrg|price|cost\w*|duit|biaya|how much|how
 AVAIL_RX = re.compile(r"\bada\b(?!\s+(?!gak|ga|tidak|sih|nih|ya|dan|sama|atau|nggak|ngga|kah)\w)")
 STOCK_RX = re.compile(r"\b(stok|stock|ready|tersedia|available|sisa|kosong|habis|in stock)")
 PRICE_RX = re.compile(r"\b(harga|hrg|price|cost|duit|biaya|how much)")
+TOTAL_RX = re.compile(r"\b(total\w*|jumlah\w*|semuanya|keseluruhan|all together|altogether|in total|sum)\b")
+FREE_RX = re.compile(r"\b(gratis|free(?!\s*fire))\b")
+NOT_FREE_RX = re.compile(r"\b(ongkir|kirim\w*|shipping|delivery|trial|demo)\b")
+QTY_UNIT = r"(?:x|buah|pcs|biji|unit|kali|copies|copy)?"
 MASK = [(re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+"), "<email>"), (re.compile(r"\+?\d[\d\s-]{7,}\d"), "<telp>")]
 
 
@@ -39,7 +43,7 @@ class Bot:
     # ---------- util ----------
     def st(self, cid):
         return self.state.setdefault(cid, {"mode": "AI", "lang": "id", "pending": None, "miss": 0, "last_product": None, "handoff": False,
-                                          "turn": 0, "last_product_turn": -99, "last_intent": None, "last_facets": None})
+                                          "turn": 0, "last_product_turn": -99, "last_products": [], "last_intent": None, "last_facets": None})
 
     def _log(self, cid, text, out):
         for rx, rep in MASK: text = rx.sub(rep, text)
@@ -101,9 +105,38 @@ class Bot:
         if not (st or pr) and re.search(r"\bberapa\b", q): pr, weak = True, True
         return {f for f, on in (("price", pr), ("stock", st)) if on}, weak
 
+    @staticmethod
+    def _quantities(text, prods):
+        """Jumlah per produk dari teks mentah ("beli 2 minecraft", "elden ring x3"). Default 1; hanya 2..99 yang dianggap jumlah."""
+        out = {}
+        for p in prods:
+            out[p["id"]] = 1
+            for alias in sorted([p["name"], *p["aliases"]], key=len, reverse=True):
+                a = re.escape(alias.lower())
+                m = re.search(rf"(?<![\d.,])(\d{{1,2}})\s*{QTY_UNIT}\s*{a}", text) or re.search(rf"{a}\s*(?:x|×)\s*(\d{{1,2}})\b|{a}\s+(\d{{1,2}})\s*(?:x|buah|pcs|biji|unit)\b", text)
+                if m:
+                    n = int(next(g for g in m.groups() if g))
+                    if 2 <= n <= 99: out[p["id"]] = n
+                    break
+        return out
+
+    def _total_blocks(self, prods, ent, lang):
+        """Total harga = jumlah x harga katalog. Hanya muncul bila diminta ("total") atau ada jumlah > 1."""
+        qty = self._quantities(ent.text, prods)
+        if not (TOTAL_RX.search(normalize(ent.text)) and len(prods) > 1 or any(n > 1 for n in qty.values())):
+            return []
+        kb, lines, total = self.kb, [], 0
+        for p in prods:
+            n = qty[p["id"]]; total += n * p["price"]
+            lines.append(kb.t("qty_line", lang, name=p["name"], n=n, price=rp(p["price"]), sub=rp(n * p["price"])))
+            if p["stock"] > 0 and n > p["stock"]: lines.append(kb.t("qty_over", lang, name=p["name"], stock=p["stock"]))
+            elif p["stock"] <= 0: lines.append(kb.t("stock_out", lang, name=p["name"]))
+        if len(prods) > 1 or any(n > 1 for n in qty.values()) and len(prods) > 1: lines.append(kb.t("total_line", lang, total=rp(total)))
+        return [{"type": "text", "text": " ".join(lines)}]
+
     def _remember(self, s, intent, prods=None, facets=None):
         s["last_intent"], s["last_facets"] = intent, (set(facets) if facets else None)
-        if prods: s["last_product"], s["last_product_turn"] = prods[-1], s["turn"]
+        if prods: s["last_product"], s["last_products"], s["last_product_turn"] = prods[-1], list(prods), s["turn"]
 
     def _clarify(self, lang, ranked, intent, conf):
         opts = [i for i, sc in ranked if sc >= MID * 0.8 and self.kb.intents[i].get("label")][:2] or ["find_product", "human"]
@@ -143,6 +176,13 @@ class Bot:
             intent, conf = ("stock" if facets == {"stock"} else "price"), 1.0
         elif prods and conf < HIGH and not (intent in CATALOG_INTENTS and conf >= MID):
             intent, conf = "find_product", 1.0                         # hanya menyebut produk -> tampilkan kartu
+
+        if not prods and TOTAL_RX.search(q) and s["last_products"] and s["turn"] - s["last_product_turn"] <= RECENT:
+            prods, intent, conf, facets = list(s["last_products"]), "price", 1.0, {"price"}     # "totalnya berapa?" -> jumlahkan produk tadi
+        if not prods and FREE_RX.search(q) and not NOT_FREE_RX.search(q):
+            top, _ = kb.query("", sort="cheap", k=3)                    # jujur: katalog tak punya produk gratis
+            s["pending"], s["miss"] = None, 0
+            return self._out([self._t("no_free", lang), self._cards(top)], lang, "find_product", 1.0, "search")
 
         # 2) rujukan ("itu", "tadi") atau intent yang jelas merujuk produk terakhir (alternatif, "kemahalan")
         if not prods and intent in (SLOT_INTENTS | {"alternative", "too_expensive"}) and conf >= MID:
@@ -190,6 +230,13 @@ class Bot:
             s["miss"] = 0
             return self._out([self._t("found", lang), self._cards(found)], lang, "find_product", conf, "search")
 
+        words = normalize(rest or ent.text).split()                # "gta 5 ada?", "fifa 24": jelas menanyakan produk yang tak ada
+        unk = kb.unknown_terms(TOTAL_RX.sub(" ", rest or ent.text), known=self.clf.vocab_set) if not prods else []
+        if unk and len(words) <= 6 and (facets or any(w.isdigit() for w in words)):
+            s["pending"], s["miss"] = None, 0
+            top, _ = kb.query("", sort="best", k=3)
+            return self._out([self._t("no_product", lang), self._cards(top)], lang, "find_product", conf, "not_found")
+
         s["miss"] += 1                                      # tidak paham -> tangga fallback
         topics = ["find_product", "payment_methods", "delivery", "order_status", "human"]
         if s["miss"] == 1:
@@ -226,7 +273,7 @@ class Bot:
             return self._out([{"type": "text", "text": kb.answer("find_product", lang)}], lang, intent, conf, "ask_slot")
         if not prods:
             s["pending"] = intent
-            unk = kb.unknown_terms(rest, known=self.clf.vocab_set)
+            unk = kb.unknown_terms(TOTAL_RX.sub(" ", rest), known=self.clf.vocab_set)
             if unk and len(rest.split()) <= 6:                       # menyebut sesuatu yang tak ada di katalog: jangan pura-pura ada
                 top, _ = kb.query("", sort="best", k=3)
                 return self._out([self._t("no_product", lang), self._cards(top)], lang, intent, conf, "not_found")
@@ -237,6 +284,8 @@ class Bot:
             return self._out([self._t("found", lang), self._cards(prods)], lang, intent, conf, "product")
         facets = facets or {intent}
         blocks = [{"type": "text", "text": self._product_lines(prods, facets, lang)}, self._cards(prods)]
+        total = self._total_blocks(prods, ent, lang) if "price" in facets else []
+        if total: blocks = total + blocks[1:]                          # rincian jumlah menggantikan kalimat harga polos
         oos = next((p for p in prods if p["stock"] <= 0), None)
         if "stock" in facets and oos:                                # habis -> tawarkan yang tersedia, dari data
             blocks += self._alt_blocks(prods, lang, base=oos)

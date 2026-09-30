@@ -5,7 +5,7 @@ Otak chat buatan sendiri: tanpa API AI pihak ketiga, tanpa internet saat jalan. 
 ## Jalankan
     docker compose up --build        # atau: pip install -r requirements.txt && uvicorn app.main:app
     curl localhost:8000/health       # otak saja, tanpa UI
-    pytest -q tests                  # 182 tes (regresi perilaku + entitas + invarian keamanan data)
+    pytest -q tests                  # 191 tes (regresi perilaku + entitas + invarian keamanan data)
     python -m tools.evaluate         # skor set uji A (67 kasus)   -v untuk lihat balasan yang gagal
     python -m tools.evaluate tests.heldout_b   # skor set uji B (54 kasus)
 
@@ -22,6 +22,7 @@ Otak chat buatan sendiri: tanpa API AI pihak ketiga, tanpa internet saat jalan. 
 
 ## Yang bisa dijawab
 - **Harga / stok / keduanya** sekaligus, untuk beberapa produk sekaligus. "stok X berapa" = stok, bukan harga
+- **Jumlah & total**: "beli 2 minecraft berapa", "2 elden ring dan 1 minecraft totalnya berapa", lalu "totalnya berapa?" menjumlahkan produk tadi. Hitungan murni dari harga katalog; jumlah di atas stok diberi catatan
 - **Katalog berfilter**: "game di bawah 150 ribu", "voucher max 120rb", "yang termurah", "rekomendasi game",
   "diatas 300rb". Bila tak ada yang cocok, bot bilang begitu lalu menampilkan yang terdekat
 - **Bandingkan** ("minecraft vs stardew"): harga, rating, stok dari data toko. Soal selera bot tidak menilai
@@ -29,6 +30,7 @@ Otak chat buatan sendiri: tanpa API AI pihak ketiga, tanpa internet saat jalan. 
 - **Nomor order**: dicatat dan diteruskan ke tim. Bot **tidak** mengecek atau mengarang status order
 - **Jujur soal batas data**: "rekomendasi game horor" → bot bilang belum bisa menyaring genre (katalog tak punya data itu).
   Produk yang tak ada di katalog tidak diberi harga
+- Produk yang jelas ditanyakan tapi tak ada ("gta 5 ada?", "fifa 24") dijawab "belum ada di katalog"; "game gratis" dijawab jujur (semua berbayar)
 - Intent baru: promo, garansi, keaslian produk, jam operasional, masalah pembayaran, identitas bot
   ("kamu bot?" → dijawab, **tidak** dioper ke admin), ack ("oke"), deny ("nggak jadi")
 
