@@ -53,3 +53,48 @@ def test_log_is_rotated(monkeypatch, tmp_path):
     b = d.Bot()
     for i in range(10): b.reply(f"l{i}", "halo")
     assert (tmp_path / "log.jsonl.1").exists()
+
+
+def test_handoff_emits_webhook_with_history_and_masks_contacts():
+    from app.dialogue import Bot
+    events = []
+    b = Bot(notifier=events.append)
+    b.reply("h1", "kontak saya budi@mail.com 081234567890")
+    b.reply("h1", "panggil admin dong")
+    assert events and events[-1]["event"] == "handoff" and events[-1]["conversation_id"] == "h1"
+    blob = str(events[-1]["history"])
+    assert "budi@mail.com" not in blob and "081234567890" not in blob and "<email>" in blob
+
+
+def test_customer_messages_forwarded_while_agent_owns_chat():
+    from app.dialogue import Bot
+    events = []
+    b = Bot(notifier=events.append)
+    b.set_mode("c", "AGENT")
+    out = b.reply("c", "kok belum dibalas?")
+    assert out["silent"] is True and events[-1]["event"] == "customer_message" and events[-1]["text"] == "kok belum dibalas?"
+
+
+def test_notifier_failure_never_breaks_reply():
+    from app.dialogue import Bot
+    def boom(e): raise RuntimeError("panel mati")
+    assert Bot(notifier=boom).reply("x", "panggil admin dong")["handoff"] is True
+
+
+def test_signature_matches_hmac():
+    import hmac, hashlib
+    from app.notify import sign
+    assert sign("k", b"{}") == "sha256=" + hmac.new(b"k", b"{}", hashlib.sha256).hexdigest()
+
+
+def test_admin_conversation_endpoints(monkeypatch, tmp_path):
+    H = {"Authorization": "Bearer t"}
+    c = TestClient(load_app(monkeypatch, tmp_path, ADMIN_TOKEN="t").app)
+    c.post("/reply", json={"conversation_id": "z9", "message": "panggil admin dong"})
+    assert c.get("/conversations").status_code == 401
+    items = c.get("/conversations", headers=H).json()["items"]
+    assert [i["conversation_id"] for i in items] == ["z9"]
+    assert c.get("/conversations/z9", headers=H).json()["history"][0]["role"] == "user"
+    assert c.get("/conversations/tidakada", headers=H).status_code == 404
+    c.post("/conversations/z9/mode", json={"mode": "AI"}, headers=H)          # admin selesai
+    assert c.get("/conversations", headers=H).json()["items"] == []

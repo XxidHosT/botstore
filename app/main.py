@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from .dialogue import Bot
 from .kb import DATA
 from .store import StateStore
+from .notify import make_notifier
 
 ADMIN_TOKEN = os.getenv("ADMIN_TOKEN", "")                       # kosong = endpoint admin nonaktif (aman secara default)
 ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
@@ -16,7 +17,8 @@ IP_LIMIT = int(os.getenv("IP_RATE_PER_MIN", "60"))
 app = FastAPI(title="JG chat-brain")
 if ORIGINS:
     app.add_middleware(CORSMiddleware, allow_origins=ORIGINS, allow_methods=["POST", "GET"], allow_headers=["Content-Type", "Authorization"])
-bot = Bot(store=StateStore(os.getenv("STATE_DB", str(DATA / "state.db"))))
+store = StateStore(os.getenv("STATE_DB", str(DATA / "state.db")))
+bot = Bot(store=store, notifier=make_notifier())
 _ip_hits = collections.defaultdict(collections.deque)
 
 
@@ -61,6 +63,17 @@ def health(): return {"ok": True}
 
 @app.post("/reply")
 def reply(body: ReplyIn): return bot.reply(body.conversation_id, body.message.strip())
+
+
+@app.get("/conversations", dependencies=[Depends(admin)])              # daftar percakapan yang menunggu/dipegang admin
+def handoffs(): return {"items": store.list_handoffs()}
+
+
+@app.get("/conversations/{cid}", dependencies=[Depends(admin)])         # riwayat singkat (email/telepon dimasker) untuk panel admin
+def conversation(cid: str):
+    s = store.get(cid)
+    if not s: raise HTTPException(404, "not found")
+    return {"conversation_id": cid, "mode": s["mode"], "handoff": s["handoff"], "lang": s["lang"], "history": s["history"]}
 
 
 @app.post("/conversations/{cid}/mode", dependencies=[Depends(admin)])   # sisi admin: ambil alih (AGENT) / kembalikan ke bot (AI)

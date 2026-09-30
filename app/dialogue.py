@@ -12,6 +12,7 @@ CATALOG_OK = SLOT_INTENTS | {"too_expensive"}                     # intent yang 
 ESCALATE = {"human", "complaint"}
 ORDER_INTENTS = {"order_status", "delivery", "refund", "license", "payment_issue", "human", "complaint"}
 FILLER = FUNC | {"aja", "saja", "semua", "lah", "deh", "tapi", "atau", "hingga", "antara", "between", "but", "or"}
+HISTORY = 20                                                      # jumlah pesan terakhir yang disimpan per percakapan
 LOG_MAX = 20 * 1024 * 1024                                        # ukuran log sebelum dirotasi
 RECENT = 6                                                        # produk "terakhir" hanya berlaku beberapa giliran
 REFER = re.compile(r"\b(itu|tadi|yang tadi|nya|that|it|this one)\b")
@@ -34,7 +35,8 @@ def rp(n): return "Rp" + f"{n:,}".replace(",", ".")
 
 
 class Bot:
-    def __init__(self, store=None):
+    def __init__(self, store=None, notifier=None):
+        self.notifier = notifier                            # fungsi(event: dict) -> None; webhook ke panel admin
         self.store = store                                  # None = state di memori proses (tes/dev); StateStore = persisten
         self.kb = KB()
         self.clf = IntentClassifier(self.kb.intents)
@@ -56,7 +58,7 @@ class Bot:
     @staticmethod
     def _new_state():
         return ({"mode": "AI", "lang": "id", "pending": None, "miss": 0, "last_product": None, "handoff": False,
-                                          "turn": 0, "last_product_turn": -99, "last_products": [], "last_intent": None, "last_facets": None})
+                                          "turn": 0, "last_product_turn": -99, "last_products": [], "last_intent": None, "last_facets": None, "history": []})
 
     def _log(self, cid, text, out):
         for rx, rep in MASK: text = rx.sub(rep, text)
@@ -85,15 +87,32 @@ class Bot:
         return {"blocks": blocks, "lang": lang, "intent": intent, "confidence": round(conf, 3), "action": action, "handoff": handoff, "silent": silent}
 
     # ---------- utama ----------
+    def _masked(self, text):
+        for rx, rep in MASK: text = rx.sub(rep, text)
+        return text
+
+    def _emit(self, event, cid, s, **extra):
+        if not self.notifier: return
+        try:
+            self.notifier({"event": event, "conversation_id": cid, "history": s["history"][-10:], **extra})
+        except Exception:
+            pass                                            # webhook tidak boleh mengganggu chat
+
     def reply(self, cid, text):
         s = self.st(cid)
         try:
             if s["mode"] == "AGENT":
+                s["history"] = (s["history"] + [{"role": "user", "text": self._masked(text)}])[-HISTORY:]
+                self._save(cid, s)
+                self._emit("customer_message", cid, s, text=self._masked(text))      # admin sedang menangani: teruskan ke panel
                 return self._out([], s["lang"], action="silent", silent=True)
             if not self._rate_ok(cid):
                 return self._out([{"type": "text", "text": self.kb.t("rate_limit", s["lang"])}], s["lang"], action="rate_limit")
             out = self._reply(s, text)
+            bot_text = " ".join(b["text"] for b in out["blocks"] if b["type"] == "text")
+            s["history"] = (s["history"] + [{"role": "user", "text": self._masked(text)}, {"role": "bot", "text": bot_text}])[-HISTORY:]
             self._save(cid, s)
+            if out["handoff"]: self._emit("handoff", cid, s, reason=out["action"], intent=out["intent"], lang=out["lang"])
         except Exception:                                   # jaring pengaman: chat tidak boleh mati diam
             out = self._out([{"type": "text", "text": self.kb.t("error", s["lang"])}], s["lang"], action="error")
         self._log(cid, text, out)
@@ -385,5 +404,6 @@ class Bot:
 
     def set_mode(self, cid, mode):
         s = self.st(cid); s["mode"] = mode; s["miss"] = 0
+        if mode == "AI": s["handoff"] = False               # admin selesai: percakapan tidak lagi "menunggu"
         self._save(cid, s)
         return s
