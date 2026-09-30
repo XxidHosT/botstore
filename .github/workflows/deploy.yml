@@ -1,0 +1,44 @@
+# Deploy ke VPS lewat SSH memakai secret milikmu sendiri (Settings > Secrets > Actions):
+#   VPS_HOST, VPS_USER, VPS_SSH_KEY (private key khusus deploy), VPS_PATH (mis. /opt/botstore)
+# Kode dikirim dari runner ke VPS lewat rsync (VPS tidak perlu akses ke GitHub). Prasyarat di VPS: docker, docker compose, rsync,
+# dan file .env di VPS_PATH. .env, data/state.db dan data/log.jsonl tidak pernah ditimpa atau dihapus.
+name: deploy
+on:
+  workflow_dispatch:
+  push: {branches: [main]}
+concurrency: {group: deploy, cancel-in-progress: false}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12", cache: pip}
+      - run: pip install -r requirements.txt
+      - run: pytest -q tests
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      SSH: ssh -i ~/.ssh/id -o StrictHostKeyChecking=yes
+      TARGET: ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}
+      DIR: ${{ secrets.VPS_PATH }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Siapkan SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id && chmod 600 ~/.ssh/id
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
+      - name: Kirim kode
+        run: |
+          $SSH $TARGET "mkdir -p $DIR/data && chmod a+rwx $DIR/data"      # container berjalan non-root dan menulis state.db di sini
+          rsync -az --delete -e "$SSH" \
+            --exclude '.git' --exclude '.github' --exclude '.env' --exclude '__pycache__' --exclude '.pytest_cache' \
+            --exclude 'data/state.db*' --exclude 'data/log.jsonl*' ./ "$TARGET:$DIR/"
+      - name: Bangun & jalankan ulang
+        run: $SSH $TARGET "cd $DIR && test -f .env && docker compose -f docker-compose.prod.yml up -d --build"
+      - name: Cek kesehatan
+        run: |
+          sleep 10
+          $SSH $TARGET "cd $DIR && docker compose -f docker-compose.prod.yml exec -T chat-brain python -c \"import urllib.request as u; print(u.urlopen('http://127.0.0.1:8000/health').read())\""

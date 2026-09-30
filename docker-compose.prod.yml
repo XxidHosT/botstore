@@ -1,0 +1,18 @@
+# Produksi: bot hanya terjangkau lewat Caddy (HTTPS otomatis). Port 8000 tidak dibuka ke internet.
+services:
+  chat-brain:
+    build: .
+    env_file: .env
+    environment: {STATE_DB: /srv/data/state.db}
+    volumes: ["./data:/srv/data"]
+    restart: unless-stopped
+    expose: ["8000"]
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment: {DOMAIN: "${DOMAIN}"}
+    volumes: ["./Caddyfile:/etc/caddy/Caddyfile:ro", "caddy_data:/data"]
+    depends_on: [chat-brain]
+volumes:
+  caddy_data:

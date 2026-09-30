@@ -5,9 +5,9 @@ Otak chat buatan sendiri: tanpa API AI pihak ketiga, tanpa internet saat jalan. 
 ## Jalankan
     docker compose up --build        # atau: pip install -r requirements.txt && uvicorn app.main:app
     curl localhost:8000/health       # otak saja, tanpa UI
-    pytest -q tests                  # 182 tes (regresi perilaku + entitas + invarian keamanan data)
+    pytest -q tests                  # 263 tes (regresi perilaku + entitas + invarian keamanan data)
     python -m tools.evaluate         # skor set uji A (67 kasus)   -v untuk lihat balasan yang gagal
-    python -m tools.evaluate tests.heldout_b   # skor set uji B (54 kasus)
+    python -m tools.evaluate tests.heldout_b   # skor set uji B (54 kasus); juga heldout_c, _d, _e
 
 ## Cara kerja (satu pesan)
 1. **entitas** dari teks mentah (`app/entities.py`): batas harga ("di bawah 100rb", "max 150 ribu", "under 100k"),
@@ -22,6 +22,8 @@ Otak chat buatan sendiri: tanpa API AI pihak ketiga, tanpa internet saat jalan. 
 
 ## Yang bisa dijawab
 - **Harga / stok / keduanya** sekaligus, untuk beberapa produk sekaligus. "stok X berapa" = stok, bukan harga
+- **Jumlah & total**: "beli 2 minecraft berapa", "2 elden ring dan 1 minecraft totalnya berapa", lalu "totalnya berapa?" menjumlahkan produk tadi. Hitungan murni dari harga katalog; jumlah di atas stok diberi catatan
+- **Cara beli** ("cara order", "gimana caranya" sesudah menyebut produk) dan **rentang harga** ("100rb-200rb", "antara 90rb dan 150rb")
 - **Katalog berfilter**: "game di bawah 150 ribu", "voucher max 120rb", "yang termurah", "rekomendasi game",
   "diatas 300rb". Bila tak ada yang cocok, bot bilang begitu lalu menampilkan yang terdekat
 - **Bandingkan** ("minecraft vs stardew"): harga, rating, stok dari data toko. Soal selera bot tidak menilai
@@ -29,6 +31,7 @@ Otak chat buatan sendiri: tanpa API AI pihak ketiga, tanpa internet saat jalan. 
 - **Nomor order**: dicatat dan diteruskan ke tim. Bot **tidak** mengecek atau mengarang status order
 - **Jujur soal batas data**: "rekomendasi game horor" → bot bilang belum bisa menyaring genre (katalog tak punya data itu).
   Produk yang tak ada di katalog tidak diberi harga
+- Produk yang jelas ditanyakan tapi tak ada ("gta 5 ada?", "fifa 24") dijawab "belum ada di katalog"; "game gratis" dijawab jujur (semua berbayar)
 - Intent baru: promo, garansi, keaslian produk, jam operasional, masalah pembayaran, identitas bot
   ("kamu bot?" → dijawab, **tidak** dioper ke admin), ack ("oke"), deny ("nggak jadi")
 
@@ -71,3 +74,21 @@ Catatan YAML: `yes`, `no`, `on`, `off` tanpa tanda kutip dibaca sebagai boolean.
 - Status order: jangan diaktifkan tanpa verifikasi (nomor order + email). Saat ini nomor order hanya dicatat dan dioper ke tim.
 - State percakapan masih di memori proses: pindahkan ke DB/Redis (tabel ChatBotState dari plan).
 - Label di UI: "asisten otomatis" (bukan klaim AI generatif).
+
+## Deploy ke VPS (produksi)
+Sekali di VPS (Docker + Compose terpasang):
+
+    git clone <repo> /opt/botstore && cd /opt/botstore
+    cp .env.example .env && nano .env      # isi ADMIN_TOKEN (openssl rand -hex 32), DOMAIN, ALLOWED_ORIGINS
+    docker compose -f docker-compose.prod.yml up -d --build
+
+DNS `DOMAIN` harus mengarah ke VPS; Caddy mengurus HTTPS otomatis. Sesudahnya, push ke `main` men-deploy sendiri lewat
+`.github/workflows/deploy.yml`: runner GitHub mengirim kode ke VPS lewat rsync (VPS butuh docker + rsync dan `.env`, tidak butuh akses GitHub).
+Isi secret VPS_HOST, VPS_USER, VPS_SSH_KEY (kunci khusus deploy), VPS_PATH di GitHub.
+
+Yang sudah diamankan: endpoint admin butuh `Authorization: Bearer $ADMIN_TOKEN` (nonaktif bila token kosong), rate limit
+per IP selain per percakapan, CORS terbatas, state percakapan di SQLite (`data/state.db`, selamat dari restart, aman untuk
+2 worker), log dirotasi pada 20 MB, container berjalan non-root.
+Admin: `curl -X POST https://DOMAIN/admin/reload -H "Authorization: Bearer $ADMIN_TOKEN"`.
+
+Belum bisa saya lakukan: mengganti `knowledge.yaml`/`products.json` dengan kebijakan dan katalog tokomu yang asli (lihat "Yang HARUS diganti").

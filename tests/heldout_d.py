@@ -1,0 +1,28 @@
+"""Set D: dijalankan sekali sebelum perbaikan apa pun untuk mengukur generalisasi. Format sama dengan heldout.py."""
+
+CASES = [
+    ("d_howbuy", ["gimana sih cara order di toko ini"], {"intent": "how_to_buy"}),
+    ("d_howbuy_en", ["how does buying work here"], {"intent": "how_to_buy"}),
+    ("d_range_ribu", ["cari yang harganya 50 ribu sampai 120 ribu"], {"has": ["Stardew"], "no": ["Elden"]}),
+    ("d_range_k", ["under 150k but above 90k"], {"has": ["Steam Wallet"], "no": ["Stardew"]}),
+    ("d_qty_beli", ["mau beli 3 robux 800 totalnya berapa"], {"has": ["447.000"]}),
+    ("d_qty_two_items", ["1 stardew sama 2 steam wallet berapa"], {"has": ["299.000"]}),
+    ("d_unknown_1", ["ada genshin impact gak"], {"action": "not_found"}),
+    ("d_unknown_2", ["harga pubg uc berapa"], {"action": "not_found"}),
+    ("d_unknown_en", ["is there call of duty"], {"action": "not_found"}),
+    ("d_free_id", ["ada game yang gratis ga"], {"has": ["berbayar"]}),
+    ("d_admin", ["kok gak ada yang bales, panggil admin dong"], {"handoff": True}),
+    ("d_late", ["pesanan saya lama banget belum masuk"], {"no": ["Aku teruskan"]}),
+    ("d_stock_two", ["elden ring sama minecraft ready gak"], {"has": ["tersedia"]}),
+    ("d_price_en_two", ["how much are elden ring and stardew"], {"has": ["459.000", "89.000"]}),
+    ("d_cheapest_en", ["what is your cheapest item"], {"has": ["Stardew"]}),
+    ("d_best_id", ["yang ratingnya paling tinggi apa"], {"has": ["Stardew", "Minecraft"]}),
+    ("d_thanks_slang", ["thx bgt kak"], {"intent": "thanks"}),
+    ("d_bye", ["ok bye"], {"intent": "goodbye"}),
+    ("d_bot", ["lu robot ya"], {"intent": "bot_identity", "handoff": False}),
+    ("d_warranty", ["ada garansi ga kalo key error"], {"intent": ("warranty", "license")}),
+    ("d_payment_dana", ["bayar pake dana bisa gak"], {"intent": "payment_methods"}),
+    ("d_refund_en", ["can i get my money back"], {"intent": "refund"}),
+    ("d_expensive_en", ["elden ring", "that's too expensive"], {"has": ["Stardew"]}),
+    ("d_compare_id", ["mending elden ring atau minecraft"], {"has": ["459.000", "359.000"]}),
+]

@@ -24,3 +24,5 @@ data/log.jsonl
 .DS_Store
 Thumbs.db
 *.log
+data/state.db*
+data/log.jsonl.1

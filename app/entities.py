@@ -18,7 +18,7 @@ MIN_RX = [re.compile(r"(?<![a-z])" + _MIN_PRE + r"\s*:?\s*" + _AMT), re.compile(
 
 CHEAP = re.compile(r"\b(termurah|paling\s+murah|yang\s+murah|murah|cheapest|cheap|lowest\s+price|paling\s+terjangkau|terjangkau)\b")
 PRICEY = re.compile(r"\b(termahal|paling\s+mahal|most\s+expensive|priciest|highest\s+price)\b")
-BEST = re.compile(r"\b(terbaik|rating\s+tertinggi|paling\s+bagus|best\s+rated|top\s+rated|highest\s+rated|best|rekomen\w*|recommend\w*|suggest\w*|saran)\b")
+BEST = re.compile(r"\b(terbaik|rating\w*\s+(?:yang\s+)?(?:paling\s+)?(?:tinggi|bagus|terbaik)|paling\s+tinggi\s+rating\w*|highest\s+rating|rating\s+tertinggi|paling\s+bagus|best\s+rated|top\s+rated|highest\s+rated|best|rekomen\w*|recommend\w*|suggest\w*|saran)\b")
 
 ORDER_RX = [
     re.compile(r"#\s?([a-z]{2,5}[-_]?\d{3,}|\d{4,})\b", re.I),
@@ -56,6 +56,20 @@ def _first(rxs, text):
     return None, None
 
 
+RANGE_RX = re.compile(r"(?<![\w.,/-])(?:antara\s+|between\s+|dari\s+|from\s+)?" + _AMT.replace(r"\b", "", 1).replace(r"(?:rp\.?\s*)?", r"(?:rp\.?\s*)?", 1)
+                      + r"\s*(?:-|–|sampai|sampe|hingga|s/d|to|dan|and|sd)\s*" + _AMT + r"(?![\w/-])", re.I)
+
+
+def _range(text):
+    """'100rb-200rb', '100-200rb', 'antara 100rb dan 200rb' -> (min, max, span). Angka tanpa satuan ikut satuan angka kedua ('100-200rb')."""
+    for m in RANGE_RX.finditer(text):
+        a, ua, b, ub = m.group(1), m.group(2), m.group(3), m.group(4)
+        if not (ua or ub) and not re.search(r"antara|between|dari|from|rp", m.group(0), re.I): continue   # '12-05', 'windows 10 - 11'
+        lo, hi = _to_int(a, ua or ub), _to_int(b, ub or ua)
+        if lo and hi and lo < hi: return lo, hi, m.span()
+    return None
+
+
 def extract(text: str) -> Entities:
     t = text.lower()
     ent = Entities(text=t)
@@ -65,9 +79,13 @@ def extract(text: str) -> Entities:
             ent.order_id = m.group(1).upper().lstrip("#")
             t = t[:m.start()] + " " + t[m.end():]
             break
+    r = _range(t)
+    if r:
+        ent.min_price, ent.max_price = r[0], r[1]
+        t = t[:r[2][0]] + " " + t[r[2][1]:]
     for attr, rxs in (("max_price", MAX_RX), ("min_price", MIN_RX)):
         v, span = _first(rxs, t)
-        if v:
+        if v and not getattr(ent, attr):
             setattr(ent, attr, v)
             t = t[:span[0]] + " " + t[span[1]:]
     for name, rx in (("pricey", PRICEY), ("best", BEST), ("cheap", CHEAP)):
