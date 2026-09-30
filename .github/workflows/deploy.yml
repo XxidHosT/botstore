@@ -1,0 +1,34 @@
+# Deploy ke VPS lewat SSH memakai secret milikmu sendiri (Settings > Secrets > Actions):
+#   VPS_HOST, VPS_USER, VPS_SSH_KEY (private key khusus deploy), VPS_PATH (mis. /opt/botstore)
+# Berjalan hanya setelah tes lulus di main. File .env ada di VPS, tidak pernah di repo.
+name: deploy
+on:
+  workflow_dispatch:
+  push: {branches: [main]}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12", cache: pip}
+      - run: pip install -r requirements.txt
+      - run: pytest -q tests
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Siapkan SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id && chmod 600 ~/.ssh/id
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
+      - name: Tarik kode & jalankan ulang
+        run: |
+          ssh -i ~/.ssh/id "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            "cd ${{ secrets.VPS_PATH }} && git fetch origin main && git reset --hard origin/main && docker compose -f docker-compose.prod.yml up -d --build"
+      - name: Cek kesehatan
+        run: |
+          sleep 10
+          ssh -i ~/.ssh/id "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" \
+            "cd ${{ secrets.VPS_PATH }} && docker compose -f docker-compose.prod.yml exec -T chat-brain python -c \"import urllib.request as u; print(u.urlopen('http://127.0.0.1:8000/health').read())\""

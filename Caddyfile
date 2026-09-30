@@ -1,0 +1,6 @@
+{$DOMAIN} {
+	# admin endpoint tetap butuh Bearer token; blokir dari luar bila tak perlu:
+	# @admin path /admin/* /conversations/*
+	# respond @admin 404
+	reverse_proxy chat-brain:8000
+}

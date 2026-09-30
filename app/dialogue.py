@@ -12,6 +12,7 @@ CATALOG_OK = SLOT_INTENTS | {"too_expensive"}                     # intent yang 
 ESCALATE = {"human", "complaint"}
 ORDER_INTENTS = {"order_status", "delivery", "refund", "license", "payment_issue", "human", "complaint"}
 FILLER = FUNC | {"aja", "saja", "semua", "lah", "deh", "tapi", "atau", "hingga", "antara", "between", "but", "or"}
+LOG_MAX = 20 * 1024 * 1024                                        # ukuran log sebelum dirotasi
 RECENT = 6                                                        # produk "terakhir" hanya berlaku beberapa giliran
 REFER = re.compile(r"\b(itu|tadi|yang tadi|nya|that|it|this one)\b")
 ELLIPSIS = re.compile(r"^(kalau|bagaimana dengan|bagaimana kalau|terus|lalu|dan|how about|what about|and|then)\b")
@@ -33,7 +34,8 @@ def rp(n): return "Rp" + f"{n:,}".replace(",", ".")
 
 
 class Bot:
-    def __init__(self):
+    def __init__(self, store=None):
+        self.store = store                                  # None = state di memori proses (tes/dev); StateStore = persisten
         self.kb = KB()
         self.clf = IntentClassifier(self.kb.intents)
         self.state = {}
@@ -44,14 +46,26 @@ class Bot:
 
     # ---------- util ----------
     def st(self, cid):
-        return self.state.setdefault(cid, {"mode": "AI", "lang": "id", "pending": None, "miss": 0, "last_product": None, "handoff": False,
+        if self.store:
+            return self.store.get(cid) or self._new_state()
+        return self.state.setdefault(cid, self._new_state())
+
+    def _save(self, cid, s):
+        if self.store: self.store.put(cid, s)
+
+    @staticmethod
+    def _new_state():
+        return ({"mode": "AI", "lang": "id", "pending": None, "miss": 0, "last_product": None, "handoff": False,
                                           "turn": 0, "last_product_turn": -99, "last_products": [], "last_intent": None, "last_facets": None})
 
     def _log(self, cid, text, out):
         for rx, rep in MASK: text = rx.sub(rep, text)
         rec = {"ts": int(time.time()), "cid": cid, "text": text, **{k: out.get(k) for k in ("lang", "intent", "confidence", "action")}}
         try:
-            with open(DATA / "log.jsonl", "a", encoding="utf-8") as f: f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+            path = DATA / "log.jsonl"
+            if path.exists() and path.stat().st_size > LOG_MAX:      # rotasi sederhana: satu berkas cadangan
+                path.replace(path.with_suffix(".jsonl.1"))
+            with open(path, "a", encoding="utf-8") as f: f.write(json.dumps(rec, ensure_ascii=False) + "\n")
         except OSError:
             pass
 
@@ -79,6 +93,7 @@ class Bot:
             if not self._rate_ok(cid):
                 return self._out([{"type": "text", "text": self.kb.t("rate_limit", s["lang"])}], s["lang"], action="rate_limit")
             out = self._reply(s, text)
+            self._save(cid, s)
         except Exception:                                   # jaring pengaman: chat tidak boleh mati diam
             out = self._out([{"type": "text", "text": self.kb.t("error", s["lang"])}], s["lang"], action="error")
         self._log(cid, text, out)
@@ -370,4 +385,5 @@ class Bot:
 
     def set_mode(self, cid, mode):
         s = self.st(cid); s["mode"] = mode; s["miss"] = 0
+        self._save(cid, s)
         return s
